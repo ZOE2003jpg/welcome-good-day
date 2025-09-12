@@ -57,6 +57,24 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // VineNovel specific colors
+        "vine-grey": {
+          50: "hsl(var(--vine-grey-50))",
+          100: "hsl(var(--vine-grey-100))",
+          200: "hsl(var(--vine-grey-200))",
+          300: "hsl(var(--vine-grey-300))",
+          400: "hsl(var(--vine-grey-400))",
+          500: "hsl(var(--vine-grey-500))",
+          600: "hsl(var(--vine-grey-600))",
+          700: "hsl(var(--vine-grey-700))",
+          800: "hsl(var(--vine-grey-800))",
+          900: "hsl(var(--vine-grey-900))",
+        },
+        "vine-orange": {
+          DEFAULT: "hsl(var(--vine-orange))",
+          light: "hsl(var(--vine-orange-light))",
+          dark: "hsl(var(--vine-orange-dark))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
