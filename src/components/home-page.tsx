@@ -1,6 +1,9 @@
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { PenTool, BookOpen, Shield, Users, TrendingUp, Zap } from "lucide-react"
+import { LoginModal } from "@/components/login-modal"
+import { useUser } from "@/components/user-context"
 import heroImage from "@/assets/hero-books.jpg"
 
 interface HomePageProps {
@@ -8,24 +11,46 @@ interface HomePageProps {
 }
 
 export function HomePage({ onPanelChange }: HomePageProps) {
+  const [showLoginModal, setShowLoginModal] = useState(false)
+  const { user } = useUser()
+
+  const handlePanelAccess = (panel: "writer" | "reader" | "admin") => {
+    if (user) {
+      // Check if user has access to this panel
+      const hasAccess = 
+        (panel === "reader") ||
+        (panel === "writer" && (user.role === "writer" || user.role === "admin")) ||
+        (panel === "admin" && user.role === "admin")
+      
+      if (hasAccess) {
+        onPanelChange(panel)
+      }
+    } else {
+      setShowLoginModal(true)
+    }
+  }
+
   const features = [
     {
       icon: PenTool,
       title: "Writer Panel",
       description: "Create and manage your stories with our intuitive slide-based editor",
-      action: () => onPanelChange("writer"),
+      action: () => handlePanelAccess("writer"),
+      requiresRole: ["writer", "admin"],
     },
     {
       icon: BookOpen,
       title: "Reader Panel",
       description: "Enjoy immersive slide-based reading with smooth transitions",
-      action: () => onPanelChange("reader"),
+      action: () => handlePanelAccess("reader"),
+      requiresRole: ["reader", "writer", "admin"],
     },
     {
       icon: Shield,
       title: "Admin Panel",
       description: "Manage users, content, and platform analytics",
-      action: () => onPanelChange("admin"),
+      action: () => handlePanelAccess("admin"),
+      requiresRole: ["admin"],
     },
   ]
 
@@ -56,18 +81,18 @@ export function HomePage({ onPanelChange }: HomePageProps) {
                 <Button
                   size="lg"
                   className="vine-button-hero"
-                  onClick={() => onPanelChange("writer")}
+                  onClick={() => handlePanelAccess("writer")}
                 >
                   <PenTool className="h-5 w-5 mr-2" />
-                  Start Writing
+                  {user ? "Start Writing" : "Login to Write"}
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
-                  onClick={() => onPanelChange("reader")}
+                  onClick={() => handlePanelAccess("reader")}
                 >
                   <BookOpen className="h-5 w-5 mr-2" />
-                  Start Reading
+                  {user ? "Start Reading" : "Login to Read"}
                 </Button>
               </div>
             </div>
@@ -107,16 +132,27 @@ export function HomePage({ onPanelChange }: HomePageProps) {
                     <CardTitle className="text-xl">{feature.title}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <CardDescription className="text-base mb-6">
+                  <CardDescription className="text-base mb-6">
                       {feature.description}
+                      {user && !feature.requiresRole.includes(user.role) && (
+                        <span className="block text-destructive text-sm mt-2">
+                          Access restricted to {feature.requiresRole.join(", ")} roles
+                        </span>
+                      )}
                     </CardDescription>
                     <Button 
                       className="w-full"
                       onClick={feature.action}
                       variant="outline"
+                      disabled={user && !feature.requiresRole.includes(user.role)}
                     >
                       <Zap className="h-4 w-4 mr-2" />
-                      Launch Panel
+                      {user 
+                        ? feature.requiresRole.includes(user.role) 
+                          ? "Launch Panel" 
+                          : "Access Denied"
+                        : "Login Required"
+                      }
                     </Button>
                   </CardContent>
                 </Card>
@@ -170,23 +206,25 @@ export function HomePage({ onPanelChange }: HomePageProps) {
               <Button
                 size="lg"
                 className="vine-button-hero"
-                onClick={() => onPanelChange("writer")}
+                onClick={() => handlePanelAccess("writer")}
               >
                 <PenTool className="h-5 w-5 mr-2" />
-                Start Writing Stories
+                {user ? "Start Writing Stories" : "Login to Write Stories"}
               </Button>
               <Button
                 size="lg"
                 variant="outline"
-                onClick={() => onPanelChange("reader")}
+                onClick={() => handlePanelAccess("reader")}
               >
                 <BookOpen className="h-5 w-5 mr-2" />
-                Discover Amazing Stories
+                {user ? "Discover Amazing Stories" : "Login to Read Stories"}
               </Button>
             </div>
           </div>
         </div>
       </section>
+
+      <LoginModal open={showLoginModal} onOpenChange={setShowLoginModal} />
     </div>
   )
 }

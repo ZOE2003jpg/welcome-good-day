@@ -1,7 +1,8 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { PenTool, BookOpen, Shield, Menu, X } from "lucide-react"
+import { PenTool, BookOpen, Shield, Menu, X, LogOut, User } from "lucide-react"
+import { useUser } from "@/components/user-context"
 
 interface NavigationProps {
   currentPanel: "home" | "writer" | "reader" | "admin"
@@ -10,12 +11,18 @@ interface NavigationProps {
 
 export function Navigation({ currentPanel, onPanelChange }: NavigationProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const { user, logout } = useUser()
 
-  const navItems = [
-    { id: "writer" as const, label: "Writer Panel", icon: PenTool },
-    { id: "reader" as const, label: "Reader Panel", icon: BookOpen },
-    { id: "admin" as const, label: "Admin Panel", icon: Shield },
+  // Filter nav items based on user role
+  const allNavItems = [
+    { id: "reader" as const, label: "Reader Panel", icon: BookOpen, roles: ["reader", "writer", "admin"] },
+    { id: "writer" as const, label: "Writer Panel", icon: PenTool, roles: ["writer", "admin"] },
+    { id: "admin" as const, label: "Admin Panel", icon: Shield, roles: ["admin"] },
   ]
+
+  const navItems = user 
+    ? allNavItems.filter(item => item.roles.includes(user.role))
+    : []
 
   return (
     <nav className="vine-card sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -50,11 +57,32 @@ export function Navigation({ currentPanel, onPanelChange }: NavigationProps) {
               )
             })}
           </div>
-          <ThemeToggle />
+          <div className="flex items-center space-x-3">
+            {user && (
+              <>
+                <div className="flex items-center space-x-2 text-sm">
+                  <User className="h-4 w-4" />
+                  <span>{user.name}</span>
+                  <span className="text-muted-foreground">({user.role})</span>
+                </div>
+                <Button variant="ghost" size="sm" onClick={logout}>
+                  <LogOut className="h-4 w-4 mr-1" />
+                  Logout
+                </Button>
+              </>
+            )}
+            <ThemeToggle />
+          </div>
         </div>
 
         {/* Mobile Menu Button */}
         <div className="flex md:hidden flex-1 items-center justify-end space-x-2">
+          {user && (
+            <div className="flex items-center space-x-1 text-sm mr-2">
+              <User className="h-4 w-4" />
+              <span className="hidden sm:inline">{user.name}</span>
+            </div>
+          )}
           <ThemeToggle />
           <Button
             variant="ghost"
@@ -91,6 +119,19 @@ export function Navigation({ currentPanel, onPanelChange }: NavigationProps) {
                 </Button>
               )
             })}
+            {user && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  logout()
+                  setIsMobileMenuOpen(false)
+                }}
+                className="w-full justify-start flex items-center space-x-2 text-destructive"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Logout</span>
+              </Button>
+            )}
           </div>
         </div>
       )}
