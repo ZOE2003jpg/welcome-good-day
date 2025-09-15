@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -23,49 +23,52 @@ import {
   ChartConfig
 } from "@/components/ui/chart"
 import { Line, LineChart, Bar, BarChart, Pie, PieChart, Cell, ResponsiveContainer, XAxis, YAxis } from "recharts"
+import { useAnalytics } from "@/hooks/useAnalytics"
+import { useUser } from "@/components/user-context"
 
 interface AnalyticsProps {
   onNavigate: (page: string, data?: any) => void
 }
 
 export function Analytics({ onNavigate }: AnalyticsProps) {
+  const { user } = useUser()
+  const { analytics, loading } = useAnalytics(user?.id)
   const [timeRange, setTimeRange] = useState("30")
+  const [analyticsData, setAnalyticsData] = useState<any>(null)
 
-  // Mock data
-  const overallStats = {
-    totalReads: 45230,
-    totalLikes: 3450,
-    totalComments: 890,
-    completionRate: 76,
-    avgReadingTime: 8.5,
-    followers: 234
+  useEffect(() => {
+    if (analytics) {
+      setAnalyticsData(analytics)
+    }
+  }, [analytics])
+
+  // Fallback data if no analytics available
+  const overallStats = analyticsData ? {
+    totalReads: analyticsData.totalReads || 0,
+    totalLikes: analyticsData.totalLikes || 0,
+    totalComments: analyticsData.totalComments || 0,
+    completionRate: analyticsData.completionRate || 0,
+    avgReadingTime: analyticsData.avgReadingTime || 0,
+    followers: analyticsData.followers || 0
+  } : {
+    totalReads: 0,
+    totalLikes: 0,
+    totalComments: 0,
+    completionRate: 0,
+    avgReadingTime: 0,
+    followers: 0
   }
 
-  const readsData = [
-    { date: "Mar 1", reads: 120, likes: 15 },
-    { date: "Mar 5", reads: 180, likes: 22 },
-    { date: "Mar 10", reads: 220, likes: 28 },
-    { date: "Mar 15", reads: 350, likes: 45 },
-    { date: "Mar 20", reads: 410, likes: 52 },
-    { date: "Mar 25", reads: 380, likes: 48 },
-    { date: "Mar 30", reads: 460, likes: 58 }
+  const readsData = analyticsData?.readsOverTime || [
+    { date: "No Data", reads: 0, likes: 0 }
   ]
 
-  const storiesData = [
-    { name: "The Digital Awakening", reads: 15420, percentage: 34 },
-    { name: "The Last Algorithm", reads: 12300, percentage: 27 },
-    { name: "Memories in the Rain", reads: 8950, percentage: 20 },
-    { name: "Echoes of Tomorrow", reads: 5430, percentage: 12 },
-    { name: "Urban Legends", reads: 3130, percentage: 7 }
+  const storiesData = analyticsData?.storiesData || [
+    { name: "No Stories", reads: 0, percentage: 0 }
   ]
 
-  const completionData = [
-    { chapter: "Ch 1", completion: 95 },
-    { chapter: "Ch 2", completion: 87 },
-    { chapter: "Ch 3", completion: 82 },
-    { chapter: "Ch 4", completion: 76 },
-    { chapter: "Ch 5", completion: 71 },
-    { chapter: "Ch 6", completion: 68 }
+  const completionData = analyticsData?.completionData || [
+    { chapter: "No Data", completion: 0 }
   ]
 
   const chartConfig: ChartConfig = {
@@ -114,6 +117,9 @@ export function Analytics({ onNavigate }: AnalyticsProps) {
       </div>
 
       {/* Key Metrics */}
+      {loading ? (
+        <div className="text-center py-8">Loading analytics...</div>
+      ) : (
       <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
@@ -187,6 +193,7 @@ export function Analytics({ onNavigate }: AnalyticsProps) {
           </CardContent>
         </Card>
       </div>
+      )}
 
       {/* Charts Grid */}
       <div className="grid lg:grid-cols-2 gap-6">

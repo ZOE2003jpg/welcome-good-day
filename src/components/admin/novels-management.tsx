@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -22,6 +22,8 @@ interface NovelsManagementProps {
 }
 
 export function NovelsManagement({ onNavigate }: NovelsManagementProps) {
+  const { user } = useUser()
+  const { stories, loading, updateStory } = useStories()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const { stories, loading } = useStories()

@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { useLibrary } from "@/hooks/useLibrary"
+import { useReads } from "@/hooks/useReads"
 import { useUser } from "@/components/user-context"
 import { toast } from "sonner"
 import { 
@@ -28,6 +29,7 @@ interface LibraryPageProps {
 export function LibraryPage({ onNavigate }: LibraryPageProps) {
   const { user } = useUser()
   const { library, loading, removeFromLibrary } = useLibrary(user?.id)
+  const { reads, getReadingProgress } = useReads(user?.id)
   const [sortBy, setSortBy] = useState<"recent" | "alphabetical">("recent")
   const [searchTerm, setSearchTerm] = useState("")
 
@@ -56,9 +58,11 @@ export function LibraryPage({ onNavigate }: LibraryPageProps) {
 
   const getReadingStats = () => {
     const totalSaved = library.length
-    const totalSlides = 0 // This would need reading progress data
+    const currentlyReading = reads.filter(r => !r.completed).length
+    const completed = reads.filter(r => r.completed).length
+    const totalSlides = reads.reduce((sum, r) => sum + r.slide_number, 0)
     
-    return { totalSaved, totalSlides }
+    return { totalSaved, currentlyReading, completed, totalSlides }
   }
 
   const stats = getReadingStats()
@@ -123,14 +127,14 @@ export function LibraryPage({ onNavigate }: LibraryPageProps) {
         <Card className="vine-card">
           <CardContent className="pt-6 text-center">
             <BookOpen className="h-8 w-8 mx-auto mb-2 text-primary" />
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">{stats.currentlyReading}</div>
             <div className="text-sm text-muted-foreground">Currently Reading</div>
           </CardContent>
         </Card>
         <Card className="vine-card">
           <CardContent className="pt-6 text-center">
             <CheckCircle className="h-8 w-8 mx-auto mb-2 text-primary" />
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">{stats.completed}</div>
             <div className="text-sm text-muted-foreground">Completed</div>
           </CardContent>
         </Card>
@@ -223,6 +227,13 @@ export function LibraryPage({ onNavigate }: LibraryPageProps) {
                   
                   <div className="text-xs text-muted-foreground mb-4">
                     Added {new Date(item.created_at).toLocaleDateString()}
+  const getReadingProgress = (storyId: string, chapterId?: string) => {
+    if (chapterId) {
+      return reads.find(r => r.novel_id === storyId && r.chapter_id === chapterId)
+    }
+    const storyReads = reads.filter(r => r.novel_id === storyId)
+    return storyReads.length > 0 ? storyReads[0] : null
+  }
                   </div>
 
                   <Button 

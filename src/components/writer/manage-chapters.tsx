@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -31,6 +31,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useChapters } from "@/hooks/useChapters"
+import { useUser } from "@/components/user-context"
+import { toast } from "sonner"
 
 interface ManageChaptersProps {
   onNavigate: (page: string, data?: any) => void
@@ -38,86 +41,36 @@ interface ManageChaptersProps {
 }
 
 export function ManageChapters({ onNavigate, story: passedStory }: ManageChaptersProps) {
+  const { user } = useUser()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [chapterToDelete, setChapterToDelete] = useState<number | null>(null)
-
-  // Use passed story data or fallback to mock
+  const [chapterToDelete, setChapterToDelete] = useState<string | null>(null)
+  
+  // Use passed story data or fallback to default
   const story = passedStory || {
-    id: 1,
-    title: "The Digital Awakening",
-    status: "published",
-    totalReads: 15420,
-    totalLikes: 1250,
-    totalComments: 340
+    id: "default",
+    title: "Select a Story",
+    status: "draft" as const,
+    totalReads: 0,
+    totalLikes: 0,
+    totalComments: 0
   }
 
-  const mockChapters = [
-    {
-      id: 1,
-      title: "Chapter 1: The Beginning",
-      description: "Sarah discovers the mysterious digital artifact that changes everything...",
-      wordCount: 2150,
-      slides: 6,
-      status: "published",
-      reads: 15420,
-      likes: 890,
-      comments: 120,
-      lastUpdated: "March 15, 2024",
-      readingTime: 11
-    },
-    {
-      id: 2,
-      title: "Chapter 2: First Contact",
-      description: "The artifact begins to respond, revealing its true nature...",
-      wordCount: 1890,
-      slides: 5,
-      status: "published", 
-      reads: 12300,
-      likes: 730,
-      comments: 95,
-      lastUpdated: "March 16, 2024",
-      readingTime: 9
-    },
-    {
-      id: 3,
-      title: "Chapter 3: The Awakening",
-      description: "Sarah must make a choice that will determine the fate of humanity...",
-      wordCount: 2400,
-      slides: 6,
-      status: "published",
-      reads: 10800,
-      likes: 650,
-      comments: 85,
-      lastUpdated: "March 17, 2024",
-      readingTime: 12
-    },
-    {
-      id: 4,
-      title: "Chapter 4: Digital Realm",
-      description: "A journey into the digital world unlike anything Sarah imagined...",
-      wordCount: 1950,
-      slides: 5,
-      status: "draft",
-      reads: 0,
-      likes: 0,
-      comments: 0,
-      lastUpdated: "March 20, 2024",
-      readingTime: 10
-    },
-    {
-      id: 5,
-      title: "Chapter 5: The Truth Revealed",
-      description: "",
-      wordCount: 450,
-      slides: 1,
-      status: "draft",
-      reads: 0,
-      likes: 0,
-      comments: 0,
-      lastUpdated: "March 22, 2024",
-      readingTime: 2
-    }
-  ]
+  const { chapters, loading, deleteChapter, publishChapter } = useChapters(story.id)
+
+  // Transform real chapters for display
+  const displayChapters = chapters.map(chapter => ({
+    id: chapter.id,
+    title: chapter.title,
+    description: chapter.content?.substring(0, 100) + "..." || "No description",
+    wordCount: chapter.word_count || 0,
+    slides: chapter.slide_count || 0,
+    status: chapter.status,
+    reads: chapter.view_count || 0,
+    likes: 0, // This would come from a likes aggregation
+    comments: 0, // This would come from comments aggregation
+    lastUpdated: new Date(chapter.updated_at).toLocaleDateString(),
+    readingTime: Math.ceil((chapter.word_count || 0) / 200) // Assuming 200 words per minute
+  }))
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -127,20 +80,37 @@ export function ManageChapters({ onNavigate, story: passedStory }: ManageChapter
     }
   }
 
-  const handleDeleteClick = (chapterId: number) => {
+  const handleDeleteClick = (chapterId: string) => {
     setChapterToDelete(chapterId)
     setDeleteDialogOpen(true)
   }
 
-  const confirmDelete = () => {
-    // Handle delete logic here
+  const confirmDelete = async () => {
+    if (!chapterToDelete) return
+    
+    try {
+      await deleteChapter(chapterToDelete)
+      toast.success("Chapter deleted successfully")
+    } catch (error) {
+      toast.error("Failed to delete chapter")
+    }
+    
     setDeleteDialogOpen(false)
     setChapterToDelete(null)
   }
 
-  const publishedChapters = mockChapters.filter(c => c.status === "published")
-  const draftChapters = mockChapters.filter(c => c.status === "draft")
-  const totalProgress = publishedChapters.length / mockChapters.length * 100
+  const handlePublishChapter = async (chapterId: string) => {
+    try {
+      await publishChapter(chapterId)
+      toast.success("Chapter published successfully")
+    } catch (error) {
+      toast.error("Failed to publish chapter")
+    }
+  }
+
+  const publishedChapters = displayChapters.filter(c => c.status === "published")
+  const draftChapters = displayChapters.filter(c => c.status === "draft")
+  const totalProgress = displayChapters.length > 0 ? (publishedChapters.length / displayChapters.length * 100) : 0
 
   return (
     <div className="space-y-6">
@@ -166,7 +136,7 @@ export function ManageChapters({ onNavigate, story: passedStory }: ManageChapter
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <FileText className="h-6 w-6 text-primary mx-auto mb-2" />
-            <div className="text-2xl font-bold">{mockChapters.length}</div>
+            <div className="text-2xl font-bold">{displayChapters.length}</div>
             <div className="text-sm text-muted-foreground">Total Chapters</div>
           </CardContent>
         </Card>
@@ -182,7 +152,7 @@ export function ManageChapters({ onNavigate, story: passedStory }: ManageChapter
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <Clock className="h-6 w-6 text-primary mx-auto mb-2" />
-            <div className="text-2xl font-bold">{mockChapters.reduce((acc, ch) => acc + ch.readingTime, 0)}</div>
+            <div className="text-2xl font-bold">{displayChapters.reduce((acc, ch) => acc + ch.readingTime, 0)}</div>
             <div className="text-sm text-muted-foreground">Total Reading Time (min)</div>
           </CardContent>
         </Card>
@@ -206,7 +176,7 @@ export function ManageChapters({ onNavigate, story: passedStory }: ManageChapter
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span>Published Chapters</span>
-              <span>{publishedChapters.length}/{mockChapters.length}</span>
+              <span>{publishedChapters.length}/{displayChapters.length}</span>
             </div>
             <Progress value={totalProgress} />
           </div>
@@ -217,7 +187,9 @@ export function ManageChapters({ onNavigate, story: passedStory }: ManageChapter
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Chapters</h2>
         
-        {mockChapters.map((chapter, index) => (
+        {loading ? (
+          <div className="text-center py-8">Loading chapters...</div>
+        ) : displayChapters.map((chapter, index) => (
           <Card key={chapter.id} className="vine-card">
             <CardContent className="p-6">
               <div className="flex gap-4">
@@ -275,10 +247,19 @@ export function ManageChapters({ onNavigate, story: passedStory }: ManageChapter
                     </div>
 
                     <div className="flex items-center gap-2">
+                      {chapter.status === 'draft' && (
+                        <Button 
+                          size="sm" 
+                          variant="default"
+                          onClick={() => handlePublishChapter(chapter.id)}
+                        >
+                          Publish
+                        </Button>
+                      )}
                       <Button 
                         size="sm" 
                         variant="outline"
-                        onClick={() => onNavigate("add-chapter")}
+                        onClick={() => onNavigate("add-chapter", { chapterId: chapter.id, storyId: story.id })}
                       >
                         <Edit className="h-4 w-4 mr-1" />
                         Edit
@@ -325,7 +306,7 @@ export function ManageChapters({ onNavigate, story: passedStory }: ManageChapter
       </div>
 
       {/* Empty State */}
-      {mockChapters.length === 0 && (
+      {displayChapters.length === 0 && !loading && (
         <Card className="vine-card">
           <CardContent className="pt-6 pb-6 text-center">
             <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
