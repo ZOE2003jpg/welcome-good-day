@@ -15,12 +15,13 @@ export function HomePage({ onPanelChange }: HomePageProps) {
   const { user } = useUser()
 
   const handlePanelAccess = (panel: "writer" | "reader" | "admin") => {
-    if (user) {
+    if (user?.profile) {
       // Check if user has access to this panel
+      const userRole = user.profile.role
       const hasAccess = 
         (panel === "reader") ||
-        (panel === "writer" && (user.role === "writer" || user.role === "admin")) ||
-        (panel === "admin" && user.role === "admin")
+        (panel === "writer" && (userRole === "writer" || userRole === "admin")) ||
+        (panel === "admin" && userRole === "admin")
       
       if (hasAccess) {
         onPanelChange(panel)
@@ -134,7 +135,7 @@ export function HomePage({ onPanelChange }: HomePageProps) {
                   <CardContent>
                   <CardDescription className="text-base mb-6">
                       {feature.description}
-                      {user && !feature.requiresRole.includes(user.role) && (
+                      {user?.profile && !feature.requiresRole.includes(user.profile.role) && (
                         <span className="block text-destructive text-sm mt-2">
                           Access restricted to {feature.requiresRole.join(", ")} roles
                         </span>
@@ -144,11 +145,11 @@ export function HomePage({ onPanelChange }: HomePageProps) {
                       className="w-full"
                       onClick={feature.action}
                       variant="outline"
-                      disabled={user && !feature.requiresRole.includes(user.role)}
+                      disabled={user?.profile && !feature.requiresRole.includes(user.profile.role)}
                     >
                       <Zap className="h-4 w-4 mr-2" />
                       {user 
-                        ? feature.requiresRole.includes(user.role) 
+                        ? user.profile?.role && feature.requiresRole.includes(user.profile.role) 
                           ? "Launch Panel" 
                           : "Access Denied"
                         : "Login Required"

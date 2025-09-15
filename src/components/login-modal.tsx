@@ -1,12 +1,13 @@
 import { useState } from "react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { PenTool, BookOpen, Shield } from "lucide-react"
-import { UserRole, useUser } from "@/components/user-context"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useUser, UserRole } from "@/components/user-context"
+import { AlertCircle, LogIn, UserPlus, Loader2 } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface LoginModalProps {
   open: boolean
@@ -16,119 +17,177 @@ interface LoginModalProps {
 export function LoginModal({ open, onOpenChange }: LoginModalProps) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [selectedRole, setSelectedRole] = useState<UserRole>("reader")
-  const { login } = useUser()
+  const [role, setRole] = useState<UserRole>("reader")
+  const [error, setError] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [mode, setMode] = useState<"signin" | "signup">("signin")
+  const { signIn, signUp } = useUser()
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (email && password) {
-      login(email, password, selectedRole)
-      onOpenChange(false)
-      setEmail("")
-      setPassword("")
+    setIsLoading(true)
+    setError("")
+
+    try {
+      let result
+      if (mode === "signin") {
+        result = await signIn(email, password)
+      } else {
+        result = await signUp(email, password, role)
+      }
+
+      if (result.error) {
+        setError(result.error.message)
+      } else {
+        onOpenChange(false)
+        setEmail("")
+        setPassword("")
+        if (mode === "signup") {
+          setError("Check your email for the confirmation link!")
+        }
+      }
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.")
+    } finally {
+      setIsLoading(false)
     }
   }
-
-  const roleOptions = [
-    {
-      value: "reader" as UserRole,
-      label: "Reader",
-      icon: BookOpen,
-      description: "Access reader panel and community features"
-    },
-    {
-      value: "writer" as UserRole,
-      label: "Writer", 
-      icon: PenTool,
-      description: "Create and manage stories, access analytics"
-    },
-    {
-      value: "admin" as UserRole,
-      label: "Admin",
-      icon: Shield,
-      description: "Full platform management and moderation"
-    }
-  ]
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-center">
-            Welcome to <span className="vine-text-gradient">VineNovel</span>
+          <DialogTitle className="flex items-center gap-2">
+            {mode === "signin" ? <LogIn className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
+            {mode === "signin" ? "Welcome Back" : "Join VineNovel"}
           </DialogTitle>
-          <DialogDescription className="text-center">
-            Choose your role and sign in to get started
+          <DialogDescription>
+            {mode === "signin" 
+              ? "Sign in to access your personalized storytelling experience" 
+              : "Create your account to start your storytelling journey"
+            }
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleLogin} className="space-y-6">
-          {/* Role Selection */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Select Your Role</Label>
-            <Tabs value={selectedRole} onValueChange={(value) => setSelectedRole(value as UserRole)}>
-              <TabsList className="grid w-full grid-cols-3">
-                {roleOptions.map((role) => {
-                  const Icon = role.icon
-                  return (
-                    <TabsTrigger key={role.value} value={role.value} className="flex items-center gap-1">
-                      <Icon className="h-4 w-4" />
-                      <span className="hidden sm:inline">{role.label}</span>
-                    </TabsTrigger>
-                  )
-                })}
-              </TabsList>
-              
-              {roleOptions.map((role) => (
-                <TabsContent key={role.value} value={role.value} className="mt-4">
-                  <Card className="vine-card">
-                    <CardContent className="pt-4">
-                      <div className="flex items-center gap-3 mb-2">
-                        <role.icon className="h-5 w-5 text-primary" />
-                        <CardTitle className="text-lg">{role.label} Access</CardTitle>
-                      </div>
-                      <CardDescription>{role.description}</CardDescription>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              ))}
-            </Tabs>
-          </div>
+        <Tabs value={mode} onValueChange={(value) => setMode(value as "signin" | "signup")} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="signin">Sign In</TabsTrigger>
+            <TabsTrigger value="signup">Sign Up</TabsTrigger>
+          </TabsList>
 
-          {/* Login Form */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-          </div>
+          <TabsContent value="signin">
+            <form onSubmit={handleAuth} className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
 
-          <Button type="submit" className="w-full vine-button-hero">
-            Sign In as {roleOptions.find(r => r.value === selectedRole)?.label}
-          </Button>
-        </form>
+              <div className="space-y-2">
+                <Label htmlFor="signin-email">Email</Label>
+                <Input
+                  id="signin-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  required
+                />
+              </div>
 
-        <div className="text-center text-sm text-muted-foreground">
-          <p>Demo credentials: Use any email/password combination</p>
-        </div>
+              <div className="space-y-2">
+                <Label htmlFor="signin-password">Password</Label>
+                <Input
+                  id="signin-password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  required
+                />
+              </div>
+
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="h-4 w-4 mr-2" />
+                    Sign In
+                  </>
+                )}
+              </Button>
+            </form>
+          </TabsContent>
+
+          <TabsContent value="signup">
+            <form onSubmit={handleAuth} className="space-y-4">
+              {error && (
+                <Alert variant={error.includes("Check your email") ? "default" : "destructive"}>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="signup-email">Email</Label>
+                <Input
+                  id="signup-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="signup-password">Password</Label>
+                <Input
+                  id="signup-password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Create a password (min 6 characters)"
+                  minLength={6}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="signup-role">I want to join as</Label>
+                <Select value={role} onValueChange={(value: UserRole) => setRole(value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select your role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="reader">Reader - Discover amazing stories</SelectItem>
+                    <SelectItem value="writer">Writer - Create and publish stories</SelectItem>
+                    <SelectItem value="admin">Admin - Manage the platform</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating account...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Create Account
+                  </>
+                )}
+              </Button>
+            </form>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   )

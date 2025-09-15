@@ -1,59 +1,139 @@
-import { createContext, useContext, useState, ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, ReactNode } from "react"
+import { supabase } from "@/integrations/supabase/client"
+import { User as SupabaseUser, Session } from '@supabase/supabase-js'
 
 export type UserRole = "reader" | "writer" | "admin"
 
+export interface Profile {
+  id: string
+  user_id: string
+  username: string | null
+  display_name: string | null
+  bio: string | null
+  avatar_url: string | null
+  role: UserRole
+  status: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface User {
   id: string
-  name: string
   email: string
-  role: UserRole
+  profile: Profile | null
 }
 
 interface UserContextType {
   user: User | null
-  setUser: (user: User | null) => void
-  login: (email: string, password: string, role: UserRole) => void
-  logout: () => void
+  session: Session | null
+  loading: boolean
+  signUp: (email: string, password: string, role?: UserRole) => Promise<{ error: any }>
+  signIn: (email: string, password: string) => Promise<{ error: any }>
+  signOut: () => Promise<void>
+  createProfile: (role: UserRole) => Promise<void>
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined)
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const login = (email: string, password: string, role: UserRole) => {
-    // Mock login - in real app this would call an API
-    const mockUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: email.split('@')[0],
-      email,
-      role
-    }
-    setUser(mockUser)
-    localStorage.setItem('vine-user', JSON.stringify(mockUser))
-  }
+  useEffect(() => {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setSession(session)
+        
+        if (session?.user) {
+          // Fetch user profile
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .single()
 
-  const logout = () => {
-    setUser(null)
-    localStorage.removeItem('vine-user')
-  }
-
-  // Check for existing user on mount
-  useState(() => {
-    const savedUser = localStorage.getItem('vine-user')
-    if (savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser)
-        setUser(parsedUser)
-      } catch (error) {
-        console.error('Error parsing saved user:', error)
-        localStorage.removeItem('vine-user')
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            profile
+          })
+        } else {
+          setUser(null)
+        }
+        
+        setLoading(false)
       }
+    )
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      if (!session) {
+        setLoading(false)
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const signUp = async (email: string, password: string, role: UserRole = 'reader') => {
+    const redirectUrl = `${window.location.origin}/`
+    
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: {
+          role
+        }
+      }
+    })
+    
+    return { error }
+  }
+
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    })
+    
+    return { error }
+  }
+
+  const signOut = async () => {
+    await supabase.auth.signOut()
+  }
+
+  const createProfile = async (role: UserRole) => {
+    if (!session?.user) return
+
+    const { error } = await supabase
+      .from('profiles')
+      .insert({
+        user_id: session.user.id,
+        role,
+        status: 'active'
+      })
+
+    if (error) {
+      console.error('Error creating profile:', error)
     }
-  })
+  }
 
   return (
-    <UserContext.Provider value={{ user, setUser, login, logout }}>
+    <UserContext.Provider value={{ 
+      user, 
+      session, 
+      loading, 
+      signUp, 
+      signIn, 
+      signOut, 
+      createProfile 
+    }}>
       {children}
     </UserContext.Provider>
   )

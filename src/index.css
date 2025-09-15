@@ -166,10 +166,68 @@
     transition: var(--transition-slide);
   }
 
-  .vine-text-gradient {
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+  .vine-slide-reader {
+    @apply relative overflow-hidden rounded-2xl;
+    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--vine-grey-50)) 100%);
+    box-shadow: 
+      0 25px 50px -12px hsl(var(--vine-grey-400) / 0.25),
+      0 0 0 1px hsl(var(--border) / 0.5),
+      inset 0 1px 0 hsl(var(--background) / 0.8);
+    border: 2px solid transparent;
+    background-image: 
+      linear-gradient(hsl(var(--card)), hsl(var(--card))),
+      linear-gradient(135deg, hsl(var(--vine-orange) / 0.3), hsl(var(--primary) / 0.1), hsl(var(--vine-orange) / 0.3));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+
+  .vine-slide-reader:hover {
+    box-shadow: 
+      0 32px 64px -12px hsl(var(--vine-grey-400) / 0.4),
+      0 0 0 1px hsl(var(--vine-orange) / 0.3),
+      inset 0 1px 0 hsl(var(--background) / 0.9);
+    transform: translateY(-2px);
+  }
+
+  .vine-slide-content {
+    @apply p-8 min-h-[60vh] flex items-center justify-center text-center;
+    background: linear-gradient(180deg, 
+      hsl(var(--card) / 0.95) 0%, 
+      hsl(var(--vine-grey-50) / 0.98) 100%);
+    backdrop-filter: blur(8px);
+    border-radius: calc(var(--radius) - 2px);
+    position: relative;
+  }
+
+  .vine-slide-content::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(45deg, 
+      hsl(var(--vine-orange) / 0.02) 0%,
+      transparent 25%,
+      transparent 75%,
+      hsl(var(--vine-orange) / 0.02) 100%);
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  .vine-progress-bar {
+    @apply h-1 rounded-full overflow-hidden;
+    background: linear-gradient(90deg, 
+      hsl(var(--vine-grey-200)) 0%,
+      hsl(var(--muted)) 100%);
+    box-shadow: inset 0 1px 2px hsl(var(--vine-grey-300) / 0.5);
+  }
+
+  .vine-progress-fill {
+    @apply h-full rounded-full transition-all duration-500 ease-out;
+    background: linear-gradient(90deg, 
+      hsl(var(--vine-orange)) 0%,
+      hsl(var(--vine-orange-light)) 50%,
+      hsl(var(--vine-orange)) 100%);
+    box-shadow: 
+      0 0 10px hsl(var(--vine-orange) / 0.4),
+      0 1px 2px hsl(var(--vine-orange) / 0.3);
   }
 }

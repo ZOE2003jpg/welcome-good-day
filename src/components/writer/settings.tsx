@@ -41,7 +41,7 @@ interface SettingsProps {
 
 export function Settings({ onNavigate }: SettingsProps) {
   const { theme, setTheme } = useTheme()
-  const { user, logout } = useUser()
+  const { user, signOut } = useUser()
   const [showPassword, setShowPassword] = useState(false)
   
   const [accountData, setAccountData] = useState({
@@ -70,7 +70,7 @@ export function Settings({ onNavigate }: SettingsProps) {
   })
 
   const handleLogout = () => {
-    logout()
+    signOut()
     onNavigate("dashboard")
   }
 

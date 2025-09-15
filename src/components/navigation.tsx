@@ -11,7 +11,7 @@ interface NavigationProps {
 
 export function Navigation({ currentPanel, onPanelChange }: NavigationProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const { user, logout } = useUser()
+  const { user, signOut } = useUser()
 
   // Filter nav items based on user role
   const allNavItems = [
@@ -20,8 +20,8 @@ export function Navigation({ currentPanel, onPanelChange }: NavigationProps) {
     { id: "admin" as const, label: "Admin Panel", icon: Shield, roles: ["admin"] },
   ]
 
-  const navItems = user 
-    ? allNavItems.filter(item => item.roles.includes(user.role))
+  const navItems = user?.profile 
+    ? allNavItems.filter(item => item.roles.includes(user.profile!.role))
     : []
 
   return (
@@ -58,14 +58,14 @@ export function Navigation({ currentPanel, onPanelChange }: NavigationProps) {
             })}
           </div>
           <div className="flex items-center space-x-3">
-            {user && (
+            {user?.profile && (
               <>
                 <div className="flex items-center space-x-2 text-sm">
                   <User className="h-4 w-4" />
-                  <span>{user.name}</span>
-                  <span className="text-muted-foreground">({user.role})</span>
+                  <span>{user.profile.display_name || user.profile.username || user.email}</span>
+                  <span className="text-muted-foreground">({user.profile.role})</span>
                 </div>
-                <Button variant="ghost" size="sm" onClick={logout}>
+                <Button variant="ghost" size="sm" onClick={signOut}>
                   <LogOut className="h-4 w-4 mr-1" />
                   Logout
                 </Button>
@@ -77,10 +77,10 @@ export function Navigation({ currentPanel, onPanelChange }: NavigationProps) {
 
         {/* Mobile Menu Button */}
         <div className="flex md:hidden flex-1 items-center justify-end space-x-2">
-          {user && (
+          {user?.profile && (
             <div className="flex items-center space-x-1 text-sm mr-2">
               <User className="h-4 w-4" />
-              <span className="hidden sm:inline">{user.name}</span>
+              <span className="hidden sm:inline">{user.profile.display_name || user.profile.username || user.email}</span>
             </div>
           )}
           <ThemeToggle />
@@ -123,7 +123,7 @@ export function Navigation({ currentPanel, onPanelChange }: NavigationProps) {
               <Button
                 variant="ghost"
                 onClick={() => {
-                  logout()
+                  signOut()
                   setIsMobileMenuOpen(false)
                 }}
                 className="w-full justify-start flex items-center space-x-2 text-destructive"
