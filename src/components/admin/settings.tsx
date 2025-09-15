@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,18 +15,49 @@ import {
   Shield,
   Save
 } from "lucide-react"
+import { useSystemSettings } from '@/hooks/useSystemSettings'
+import { toast } from "sonner"
 
 interface SettingsProps {
   onNavigate: (page: string, data?: any) => void
 }
 
 export function Settings({ onNavigate }: SettingsProps) {
+  const { settings, loading, getSetting, updateSetting } = useSystemSettings()
+  
   const [adFrequency, setAdFrequency] = useState("6")
   const [slideWordLimit, setSlideWordLimit] = useState("400")
   const [defaultTheme, setDefaultTheme] = useState("grey")
   const [autoModeration, setAutoModeration] = useState(true)
   const [emailNotifications, setEmailNotifications] = useState(true)
   const [maintenanceMode, setMaintenanceMode] = useState(false)
+
+  useEffect(() => {
+    if (!loading && settings.length > 0) {
+      setAdFrequency(getSetting('ad_frequency') || '6')
+      setSlideWordLimit(getSetting('slide_word_limit') || '400')
+      setDefaultTheme(getSetting('default_theme') || 'grey')
+      setAutoModeration(getSetting('auto_moderation') === 'true')
+      setEmailNotifications(getSetting('email_notifications') === 'true')
+      setMaintenanceMode(getSetting('maintenance_mode') === 'true')
+    }
+  }, [loading, settings, getSetting])
+
+  const handleSaveSettings = async () => {
+    try {
+      await Promise.all([
+        updateSetting('ad_frequency', adFrequency),
+        updateSetting('slide_word_limit', slideWordLimit),
+        updateSetting('default_theme', defaultTheme),
+        updateSetting('auto_moderation', autoModeration.toString()),
+        updateSetting('email_notifications', emailNotifications.toString()),
+        updateSetting('maintenance_mode', maintenanceMode.toString())
+      ])
+      toast.success('Settings saved successfully!')
+    } catch (error) {
+      toast.error('Failed to save settings')
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -412,9 +443,13 @@ export function Settings({ onNavigate }: SettingsProps) {
 
       {/* Save Button */}
       <div className="flex justify-end">
-        <Button className="vine-button-hero">
+        <Button 
+          className="vine-button-hero"
+          onClick={handleSaveSettings}
+          disabled={loading}
+        >
           <Save className="h-4 w-4 mr-2" />
-          Save All Settings
+          {loading ? "Saving..." : "Save All Settings"}
         </Button>
       </div>
     </div>

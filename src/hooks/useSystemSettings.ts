@@ -5,7 +5,7 @@ export interface SystemSetting {
   id: string
   setting_key: string
   value: string
-  description?: string
+  description: string | null
   updated_at: string
 }
 
@@ -20,7 +20,7 @@ export function useSystemSettings() {
       const { data, error } = await supabase
         .from('system_settings')
         .select('*')
-        .order('setting_key')
+        .order('setting_key', { ascending: true })
 
       if (error) throw error
       setSettings(data || [])
@@ -31,9 +31,8 @@ export function useSystemSettings() {
     }
   }
 
-  const getSetting = (key: string): string | null => {
-    const setting = settings.find(s => s.setting_key === key)
-    return setting?.value || null
+  const getSetting = (key: string) => {
+    return settings.find(setting => setting.setting_key === key)?.value
   }
 
   const updateSetting = async (key: string, value: string) => {
@@ -42,7 +41,7 @@ export function useSystemSettings() {
         .from('system_settings')
         .upsert({ 
           setting_key: key, 
-          value: value,
+          value,
           updated_at: new Date().toISOString()
         })
 
@@ -54,28 +53,20 @@ export function useSystemSettings() {
     }
   }
 
-  const updateMultipleSettings = async (settingsToUpdate: { [key: string]: string }) => {
-    try {
-      const updates = Object.entries(settingsToUpdate).map(([key, value]) => ({
-        setting_key: key,
-        value: value,
-        updated_at: new Date().toISOString()
-      }))
-
-      const { error } = await supabase
-        .from('system_settings')
-        .upsert(updates)
-
-      if (error) throw error
-      await fetchSettings()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update settings')
-      throw err
-    }
-  }
-
   useEffect(() => {
     fetchSettings()
+
+    // Set up real-time subscription
+    const channel = supabase
+      .channel('system-settings-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'system_settings' }, () => {
+        fetchSettings()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   return {
@@ -84,7 +75,6 @@ export function useSystemSettings() {
     error,
     fetchSettings,
     getSetting,
-    updateSetting,
-    updateMultipleSettings
+    updateSetting
   }
 }

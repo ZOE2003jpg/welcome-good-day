@@ -4,13 +4,13 @@ import { supabase } from '@/integrations/supabase/client'
 export interface Report {
   id: string
   reporter_id: string
-  story_id?: string
+  story_id: string | null
   reason: string
-  description?: string
+  description: string | null
   status: 'pending' | 'reviewed' | 'resolved'
   created_at: string
-  reviewed_at?: string
-  reviewed_by?: string
+  reviewed_at: string | null
+  reviewed_by: string | null
 }
 
 export function useReports() {
@@ -35,20 +35,14 @@ export function useReports() {
     }
   }
 
-  const updateReportStatus = async (id: string, status: 'pending' | 'reviewed' | 'resolved', reviewedBy?: string) => {
+  const updateReportStatus = async (id: string, status: 'pending' | 'reviewed' | 'resolved') => {
     try {
-      const updates: any = { 
-        status,
-        reviewed_at: new Date().toISOString()
-      }
-      
-      if (reviewedBy) {
-        updates.reviewed_by = reviewedBy
-      }
-
       const { error } = await supabase
         .from('reports')
-        .update(updates)
+        .update({ 
+          status,
+          reviewed_at: status !== 'pending' ? new Date().toISOString() : null 
+        })
         .eq('id', id)
 
       if (error) throw error
@@ -59,23 +53,20 @@ export function useReports() {
     }
   }
 
-  const deleteReport = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('reports')
-        .delete()
-        .eq('id', id)
-
-      if (error) throw error
-      await fetchReports()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete report')
-      throw err
-    }
-  }
-
   useEffect(() => {
     fetchReports()
+
+    // Set up real-time subscription
+    const channel = supabase
+      .channel('reports-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reports' }, () => {
+        fetchReports()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   return {
@@ -83,7 +74,6 @@ export function useReports() {
     loading,
     error,
     fetchReports,
-    updateReportStatus,
-    deleteReport
+    updateReportStatus
   }
 }

@@ -21,6 +21,8 @@ import { useChapters } from "@/hooks/useChapters"
 import { useSlides } from "@/hooks/useSlides"
 import { useUser } from "@/components/user-context"
 import { toast } from "sonner"
+import { useStories } from "@/hooks/useStories"
+import { supabase } from '@/integrations/supabase/client'
 
 interface AddChapterProps {
   onNavigate: (page: string, data?: any) => void
@@ -30,11 +32,12 @@ export function AddChapter({ onNavigate }: AddChapterProps) {
   const { user } = useUser()
   const { createChapter, loading } = useChapters()
   const { splitChapterToSlides } = useSlides()
+  const { stories } = useStories()
   
   const [chapterData, setChapterData] = useState({
     title: "",
     content: "",
-    storyId: "" // In a real app, this would come from navigation context
+    storyId: stories.length > 0 ? stories[0].id : ""
   })
   
   const [slides, setSlides] = useState<string[]>([])
@@ -74,13 +77,30 @@ export function AddChapter({ onNavigate }: AddChapterProps) {
       return
     }
 
+    if (!chapterData.storyId) {
+      toast.error("Please select a story first")
+      return
+    }
+
     try {
+      // Get the current chapter count for this story to set proper number
+      const { data: existingChapters } = await supabase
+        .from('chapters')
+        .select('chapter_number')
+        .eq('story_id', chapterData.storyId)
+        .order('chapter_number', { ascending: false })
+        .limit(1)
+      
+      const nextChapterNumber = existingChapters && existingChapters.length > 0 
+        ? existingChapters[0].chapter_number + 1 
+        : 1
+
       // Create the chapter first
       const chapter = await createChapter({
         title: chapterData.title,
         content: chapterData.content,
         story_id: chapterData.storyId,
-        chapter_number: 1 // In real app, calculate this
+        chapter_number: nextChapterNumber
       })
 
       // Split into slides using edge function
@@ -89,9 +109,10 @@ export function AddChapter({ onNavigate }: AddChapterProps) {
       }
 
       toast.success("Chapter created and split into slides!")
-      onNavigate("manage-chapters")
+      onNavigate("manage-chapters", { storyId: chapterData.storyId })
     } catch (error) {
       toast.error("Failed to create chapter")
+      console.error('Chapter creation error:', error)
     }
   }
 
@@ -137,6 +158,23 @@ export function AddChapter({ onNavigate }: AddChapterProps) {
               <CardDescription>Basic information about this chapter</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="story-select">Select Story</Label>
+                <select
+                  id="story-select"
+                  value={chapterData.storyId}
+                  onChange={(e) => setChapterData({...chapterData, storyId: e.target.value})}
+                  className="w-full p-2 border border-input rounded-md bg-background"
+                >
+                  <option value="">Select a story...</option>
+                  {stories.filter(s => s.author_id === user?.id).map((story) => (
+                    <option key={story.id} value={story.id}>
+                      {story.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
               <div className="space-y-2">
                 <Label htmlFor="chapter-title">Chapter Title</Label>
                 <Input

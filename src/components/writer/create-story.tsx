@@ -45,7 +45,7 @@ export function CreateStory({ onNavigate }: CreateStoryProps) {
     }
 
     try {
-      await createStory({
+      const newStory = await createStory({
         title: formData.title.trim(),
         description: formData.description.trim(),
         genre: formData.genre,
@@ -54,7 +54,8 @@ export function CreateStory({ onNavigate }: CreateStoryProps) {
       })
       
       toast.success("Story created successfully!")
-      onNavigate("dashboard")
+      // Navigate to manage chapters with the new story data
+      onNavigate("manage-chapters", { story: newStory })
     } catch (error) {
       toast.error("Failed to create story")
     }

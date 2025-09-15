@@ -14,6 +14,8 @@ import {
   Search,
   Plus
 } from "lucide-react"
+import { useChapters } from "@/hooks/useChapters"
+import { useStories } from "@/hooks/useStories"
 
 interface ChapterManagerProps {
   novel?: any
@@ -22,72 +24,33 @@ interface ChapterManagerProps {
 
 export function ChapterManager({ novel, onNavigate }: ChapterManagerProps) {
   const [searchTerm, setSearchTerm] = useState("")
+  const { stories } = useStories()
+  const story = novel || (stories.length > 0 ? stories[0] : null)
+  const { chapters, loading, updateChapter, deleteChapter } = useChapters(story?.id)
 
-  const mockChapters = [
-    {
-      id: 1,
-      title: "The Beginning",
-      description: "Our hero starts their journey",
-      wordCount: 2400,
-      slideCount: 6,
-      status: "published",
-      publishDate: "Jan 15, 2024",
-      reads: 15000,
-      likes: 450
-    },
-    {
-      id: 2,
-      title: "First Challenge",
-      description: "Obstacles arise in the digital world",
-      wordCount: 3200,
-      slideCount: 8,
-      status: "published",
-      publishDate: "Jan 22, 2024",
-      reads: 12000,
-      likes: 380
-    },
-    {
-      id: 3,
-      title: "New Allies",
-      description: "Meeting friends and forming bonds",
-      wordCount: 2800,
-      slideCount: 7,
-      status: "draft",
-      publishDate: null,
-      reads: 0,
-      likes: 0
-    },
-    {
-      id: 4,
-      title: "The Revelation",
-      description: "A shocking discovery changes everything",
-      wordCount: 4000,
-      slideCount: 10,
-      status: "locked",
-      publishDate: "Feb 1, 2024",
-      reads: 8000,
-      likes: 520
-    }
-  ]
-
-  const filteredChapters = mockChapters.filter(chapter =>
+  const filteredChapters = chapters.filter(chapter =>
     chapter.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    chapter.description.toLowerCase().includes(searchTerm.toLowerCase())
+    (chapter.content && chapter.content.toLowerCase().includes(searchTerm.toLowerCase()))
   )
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "published": return "default"
       case "draft": return "secondary"
-      case "locked": return "destructive"
       default: return "outline"
     }
   }
 
-  const currentNovel = novel || {
-    title: "Digital Awakening",
-    writer: "Sarah Chen",
-    category: "Sci-Fi"
+  const currentNovel = story || {
+    title: "Select a Story",
+    author_id: "Unknown",
+    genre: "Unknown"
+  }
+
+  if (loading) {
+    return <div className="space-y-8">
+      <div className="text-center">Loading chapters...</div>
+    </div>
   }
 
   return (
@@ -124,7 +87,7 @@ export function ChapterManager({ novel, onNavigate }: ChapterManagerProps) {
             <div>
               <h3 className="text-xl font-semibold">{currentNovel.title}</h3>
               <p className="text-muted-foreground">
-                {currentNovel.category} • by {currentNovel.writer}
+                {currentNovel.genre} • Story ID: {currentNovel.id}
               </p>
             </div>
             <div className="flex gap-2">
@@ -164,7 +127,7 @@ export function ChapterManager({ novel, onNavigate }: ChapterManagerProps) {
               <div className="flex flex-col lg:flex-row gap-6">
                 {/* Chapter Number */}
                 <div className="flex items-center justify-center w-16 h-16 bg-primary/10 rounded-lg">
-                  <span className="text-xl font-bold text-primary">{index + 1}</span>
+                  <span className="text-xl font-bold text-primary">{chapter.chapter_number}</span>
                 </div>
 
                 {/* Chapter Info */}
@@ -177,43 +140,42 @@ export function ChapterManager({ novel, onNavigate }: ChapterManagerProps) {
                           {chapter.status}
                         </Badge>
                       </div>
-                      <p className="text-muted-foreground">{chapter.description}</p>
+                      <p className="text-muted-foreground">
+                        {chapter.content ? chapter.content.substring(0, 100) + '...' : 'No content'}
+                      </p>
                       <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                        <span>Words: {chapter.wordCount.toLocaleString()}</span>
-                        <span>Slides: {chapter.slideCount}</span>
-                        {chapter.publishDate && (
-                          <span>Published: {chapter.publishDate}</span>
-                        )}
-                        <span>Reads: {chapter.reads.toLocaleString()}</span>
-                        <span>Likes: {chapter.likes}</span>
+                        <span>Words: {(chapter as any).word_count || 0}</span>
+                        <span>Slides: {(chapter as any).slide_count || 0}</span>
+                        <span>Created: {new Date(chapter.created_at).toLocaleDateString()}</span>
+                        <span>Views: {chapter.view_count || 0}</span>
                       </div>
                     </div>
 
                     {/* Actions */}
                     <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="outline">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => onNavigate("slide-reader", { chapterId: chapter.id })}
+                      >
                         <Eye className="h-4 w-4 mr-1" />
                         View Slides
                       </Button>
                       
-                      <Button size="sm" variant="outline">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => onNavigate("add-chapter", { chapterId: chapter.id })}
+                      >
                         <Edit className="h-4 w-4 mr-1" />
                         Edit Chapter
                       </Button>
 
-                      {chapter.status === "locked" ? (
-                        <Button size="sm" variant="outline">
-                          <Unlock className="h-4 w-4 mr-1" />
-                          Unlock
-                        </Button>
-                      ) : (
-                        <Button size="sm" variant="outline">
-                          <Lock className="h-4 w-4 mr-1" />
-                          Lock
-                        </Button>
-                      )}
-
-                      <Button size="sm" variant="outline">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => deleteChapter(chapter.id)}
+                      >
                         <Trash2 className="h-4 w-4 mr-1" />
                         Delete
                       </Button>
@@ -224,6 +186,14 @@ export function ChapterManager({ novel, onNavigate }: ChapterManagerProps) {
             </CardContent>
           </Card>
         ))}
+        
+        {filteredChapters.length === 0 && (
+          <Card className="vine-card">
+            <CardContent className="pt-6 text-center text-muted-foreground">
+              No chapters found for this story.
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Chapter Stats */}
@@ -231,7 +201,7 @@ export function ChapterManager({ novel, onNavigate }: ChapterManagerProps) {
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-primary">
-              {mockChapters.filter(c => c.status === "published").length}
+              {chapters.filter(c => c.status === "published").length}
             </div>
             <div className="text-sm text-muted-foreground">Published</div>
           </CardContent>
@@ -239,7 +209,7 @@ export function ChapterManager({ novel, onNavigate }: ChapterManagerProps) {
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-secondary-foreground">
-              {mockChapters.filter(c => c.status === "draft").length}
+              {chapters.filter(c => c.status === "draft").length}
             </div>
             <div className="text-sm text-muted-foreground">Drafts</div>
           </CardContent>
@@ -247,7 +217,7 @@ export function ChapterManager({ novel, onNavigate }: ChapterManagerProps) {
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">
-              {mockChapters.reduce((sum, c) => sum + c.wordCount, 0).toLocaleString()}
+              {chapters.reduce((sum, c) => sum + ((c as any).word_count || 0), 0).toLocaleString()}
             </div>
             <div className="text-sm text-muted-foreground">Total Words</div>
           </CardContent>
@@ -255,7 +225,7 @@ export function ChapterManager({ novel, onNavigate }: ChapterManagerProps) {
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">
-              {mockChapters.reduce((sum, c) => sum + c.slideCount, 0)}
+              {chapters.reduce((sum, c) => sum + ((c as any).slide_count || 0), 0)}
             </div>
             <div className="text-sm text-muted-foreground">Total Slides</div>
           </CardContent>
