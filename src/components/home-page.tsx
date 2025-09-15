@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { PenTool, BookOpen, Shield, Users, TrendingUp, Zap } from "lucide-react"
 import { LoginModal } from "@/components/login-modal"
+import { AdminUserCreator } from "@/components/admin-user-creator"
 import { useUser } from "@/components/user-context"
 import heroImage from "@/assets/hero-books.jpg"
 
@@ -222,6 +223,13 @@ export function HomePage({ onPanelChange }: HomePageProps) {
               </Button>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Temporary User Creator */}
+      <section className="py-12 bg-destructive/5">
+        <div className="container px-4 mx-auto">
+          <AdminUserCreator />
         </div>
       </section>
 

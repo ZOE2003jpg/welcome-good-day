@@ -44,10 +44,51 @@ export function UserProvider({ children }: { children: ReactNode }) {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id)
         setSession(session)
         
         if (session?.user) {
           // Fetch user profile
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .single()
+
+          if (error) {
+            console.log('Profile fetch error:', error)
+            // If no profile exists, user object will have null profile
+            setUser({
+              id: session.user.id,
+              email: session.user.email || '',
+              profile: null
+            })
+          } else {
+            setUser({
+              id: session.user.id,
+              email: session.user.email || '',
+              profile
+            })
+          }
+        } else {
+          setUser(null)
+        }
+        
+        setLoading(false)
+      }
+    )
+
+    // Check for existing session on mount
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+        if (error) {
+          console.error('Session error:', error)
+          setLoading(false)
+          return
+        }
+        
+        if (session?.user) {
           const { data: profile } = await supabase
             .from('profiles')
             .select('*')
@@ -57,23 +98,18 @@ export function UserProvider({ children }: { children: ReactNode }) {
           setUser({
             id: session.user.id,
             email: session.user.email || '',
-            profile
+            profile: profile || null
           })
-        } else {
-          setUser(null)
+          setSession(session)
         }
-        
+        setLoading(false)
+      } catch (error) {
+        console.error('Auth initialization error:', error)
         setLoading(false)
       }
-    )
+    }
 
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      if (!session) {
-        setLoading(false)
-      }
-    })
+    initializeAuth()
 
     return () => subscription.unsubscribe()
   }, [])
