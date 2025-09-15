@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useStories } from "@/hooks/useStories"
 import { 
   BookOpen, 
   Eye, 
@@ -23,62 +24,12 @@ interface NovelsManagementProps {
 export function NovelsManagement({ onNavigate }: NovelsManagementProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const { stories, loading } = useStories()
 
-  const mockNovels = [
-    {
-      id: 1,
-      title: "Digital Awakening",
-      writer: "Sarah Chen",
-      category: "Sci-Fi",
-      status: "active",
-      chapters: 12,
-      reads: 45000,
-      rating: 4.8,
-      publishDate: "Jan 15, 2024",
-      cover: "/placeholder.svg"
-    },
-    {
-      id: 2,
-      title: "Midnight Chronicles",
-      writer: "John Doe",
-      category: "Fantasy",
-      status: "pending",
-      chapters: 8,
-      reads: 12000,
-      rating: 4.2,
-      publishDate: "Feb 3, 2024",
-      cover: "/placeholder.svg"
-    },
-    {
-      id: 3,
-      title: "Love in Code",
-      writer: "Alice Wang",
-      category: "Romance",
-      status: "banned",
-      chapters: 15,
-      reads: 28000,
-      rating: 4.6,
-      publishDate: "Dec 20, 2023",
-      cover: "/placeholder.svg"
-    },
-    {
-      id: 4,
-      title: "The Last Writer",
-      writer: "Michael Brown",
-      category: "Drama",
-      status: "active",
-      chapters: 20,
-      reads: 35000,
-      rating: 4.5,
-      publishDate: "Nov 10, 2023",
-      cover: "/placeholder.svg"
-    }
-  ]
-
-  const filteredNovels = mockNovels.filter(novel => {
-    const matchesSearch = novel.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         novel.writer.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || novel.status === statusFilter
+  const filteredStories = stories.filter(story => {
+    const matchesSearch = story.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (story.profiles?.display_name || story.profiles?.username || "").toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesStatus = statusFilter === "all" || story.status === statusFilter
     return matchesSearch && matchesStatus
   })
 
@@ -141,117 +92,142 @@ export function NovelsManagement({ onNavigate }: NovelsManagementProps) {
       </Card>
 
       {/* Novels List */}
-      <div className="space-y-4">
-        {filteredNovels.map((novel) => (
-          <Card key={novel.id} className="vine-card">
-            <CardContent className="pt-6">
-              <div className="flex flex-col lg:flex-row gap-6">
-                {/* Cover Image */}
-                <div className="w-full lg:w-24 h-32 lg:h-32 bg-muted rounded-lg flex items-center justify-center">
-                  <BookOpen className="h-8 w-8 text-muted-foreground" />
-                </div>
-
-                {/* Novel Info */}
-                <div className="flex-1 space-y-4">
-                  <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-3">
-                        <h3 className="text-xl font-semibold">{novel.title}</h3>
-                        <Badge variant={getStatusColor(novel.status) as any}>
-                          {novel.status}
-                        </Badge>
-                      </div>
-                      <p className="text-muted-foreground">by {novel.writer}</p>
-                      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                        <span>Category: {novel.category}</span>
-                        <span>Chapters: {novel.chapters}</span>
-                        <span>Reads: {novel.reads.toLocaleString()}</span>
-                        <span>Rating: {novel.rating}/5</span>
-                        <span>Published: {novel.publishDate}</span>
-                      </div>
+      {loading ? (
+        <div className="text-center py-8">Loading stories...</div>
+      ) : (
+        <div className="space-y-4">
+          {filteredStories.length === 0 ? (
+            <Card className="vine-card">
+              <CardContent className="pt-6 pb-6 text-center">
+                <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">No stories found</h3>
+                <p className="text-muted-foreground">
+                  {searchTerm || statusFilter !== "all" 
+                    ? "Try adjusting your search or filters" 
+                    : "No stories have been created yet"
+                  }
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            filteredStories.map((story) => (
+              <Card key={story.id} className="vine-card">
+                <CardContent className="pt-6">
+                  <div className="flex flex-col lg:flex-row gap-6">
+                    {/* Cover Image */}
+                    <div className="w-full lg:w-24 h-32 lg:h-32 bg-muted rounded-lg flex items-center justify-center">
+                      {story.cover_image_url ? (
+                        <img src={story.cover_image_url} alt={story.title} className="w-full h-full object-cover rounded-lg" />
+                      ) : (
+                        <BookOpen className="h-8 w-8 text-muted-foreground" />
+                      )}
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex flex-wrap gap-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => onNavigate("chapters", novel)}
-                      >
-                        <FileText className="h-4 w-4 mr-1" />
-                        View Chapters
-                      </Button>
-                      
-                      {novel.status === "pending" && (
-                        <>
-                          <Button size="sm" variant="outline">
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Approve
+                    {/* Novel Info */}
+                    <div className="flex-1 space-y-4">
+                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <h3 className="text-xl font-semibold">{story.title}</h3>
+                            <Badge variant={getStatusColor(story.status) as any}>
+                              {story.status}
+                            </Badge>
+                          </div>
+                          <p className="text-muted-foreground">
+                            by {story.profiles?.display_name || story.profiles?.username || "Anonymous"}
+                          </p>
+                          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                            <span>Category: {story.genre || "General"}</span>
+                            <span>Reads: {story.view_count.toLocaleString()}</span>
+                            <span>Likes: {story.like_count}</span>
+                            <span>Comments: {story.comment_count}</span>
+                            <span>Published: {new Date(story.created_at).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex flex-wrap gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => onNavigate("chapters", story)}
+                          >
+                            <FileText className="h-4 w-4 mr-1" />
+                            View Chapters
                           </Button>
+                          
+                          {story.status === "draft" && (
+                            <>
+                              <Button size="sm" variant="outline">
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Approve
+                              </Button>
+                              <Button size="sm" variant="outline">
+                                <X className="h-4 w-4 mr-1" />
+                                Reject
+                              </Button>
+                            </>
+                          )}
+
+                          {story.status === "published" && (
+                            <Button size="sm" variant="outline">
+                              <Ban className="h-4 w-4 mr-1" />
+                              Block
+                            </Button>
+                          )}
+
                           <Button size="sm" variant="outline">
-                            <X className="h-4 w-4 mr-1" />
-                            Reject
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
                           </Button>
-                        </>
-                      )}
 
-                      {novel.status === "active" && (
-                        <Button size="sm" variant="outline">
-                          <Ban className="h-4 w-4 mr-1" />
-                          Block
-                        </Button>
-                      )}
-
-                      <Button size="sm" variant="outline">
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit
-                      </Button>
-
-                      <Button size="sm" variant="outline">
-                        <Eye className="h-4 w-4 mr-1" />
-                        Preview
-                      </Button>
+                          <Button size="sm" variant="outline">
+                            <Eye className="h-4 w-4 mr-1" />
+                            Preview
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
 
       {/* Stats Summary */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-primary">
-              {mockNovels.filter(n => n.status === "active").length}
+              {stories.filter(s => s.status === "published").length}
             </div>
-            <div className="text-sm text-muted-foreground">Active Novels</div>
+            <div className="text-sm text-muted-foreground">Published Stories</div>
           </CardContent>
         </Card>
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-secondary-foreground">
-              {mockNovels.filter(n => n.status === "pending").length}
+              {stories.filter(s => s.status === "draft").length}
             </div>
-            <div className="text-sm text-muted-foreground">Pending Approval</div>
+            <div className="text-sm text-muted-foreground">Draft Stories</div>
           </CardContent>
         </Card>
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-destructive">
-              {mockNovels.filter(n => n.status === "banned").length}
+              {stories.filter(s => s.status === "archived").length}
             </div>
-            <div className="text-sm text-muted-foreground">Banned</div>
+            <div className="text-sm text-muted-foreground">Archived</div>
           </CardContent>
         </Card>
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">
-              {mockNovels.reduce((sum, n) => sum + n.chapters, 0)}
+              {stories.length}
             </div>
-            <div className="text-sm text-muted-foreground">Total Chapters</div>
+            <div className="text-sm text-muted-foreground">Total Stories</div>
           </CardContent>
         </Card>
       </div>
