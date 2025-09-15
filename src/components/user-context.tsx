@@ -41,35 +41,55 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let mounted = true
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
+        if (!mounted) return
+        
         console.log('Auth state changed:', event, session?.user?.id)
         setSession(session)
         
         if (session?.user) {
-          // Fetch user profile
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('user_id', session.user.id)
-            .single()
+          // Fetch user profile asynchronously without blocking
+          setTimeout(async () => {
+            if (!mounted) return
+            
+            try {
+              const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .single()
 
-          if (error) {
-            console.log('Profile fetch error:', error)
-            // If no profile exists, user object will have null profile
-            setUser({
-              id: session.user.id,
-              email: session.user.email || '',
-              profile: null
-            })
-          } else {
-            setUser({
-              id: session.user.id,
-              email: session.user.email || '',
-              profile
-            })
-          }
+              if (!mounted) return
+
+              if (error) {
+                console.log('Profile fetch error:', error)
+                setUser({
+                  id: session.user.id,
+                  email: session.user.email || '',
+                  profile: null
+                })
+              } else {
+                setUser({
+                  id: session.user.id,
+                  email: session.user.email || '',
+                  profile
+                })
+              }
+            } catch (error) {
+              console.error('Profile fetch failed:', error)
+              if (mounted) {
+                setUser({
+                  id: session.user.id,
+                  email: session.user.email || '',
+                  profile: null
+                })
+              }
+            }
+          }, 0)
         } else {
           setUser(null)
         }
@@ -80,38 +100,37 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
     // Check for existing session on mount
     const initializeAuth = async () => {
+      if (!mounted) return
+      
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
+        
+        if (!mounted) return
+        
         if (error) {
           console.error('Session error:', error)
           setLoading(false)
           return
         }
         
-        if (session?.user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('user_id', session.user.id)
-            .single()
-
-          setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            profile: profile || null
-          })
-          setSession(session)
+        // Don't set user state here, let onAuthStateChange handle it
+        if (!session) {
+          setLoading(false)
         }
-        setLoading(false)
       } catch (error) {
         console.error('Auth initialization error:', error)
-        setLoading(false)
+        if (mounted) {
+          setLoading(false)
+        }
       }
     }
 
     initializeAuth()
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   const signUp = async (email: string, password: string, role: UserRole = 'reader') => {
