@@ -19,7 +19,7 @@ import {
 } from "lucide-react"
 
 interface AddChapterProps {
-  onNavigate: (page: string) => void
+  onNavigate: (page: string, data?: any) => void
 }
 
 export function AddChapter({ onNavigate }: AddChapterProps) {

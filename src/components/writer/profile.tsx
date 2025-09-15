@@ -22,7 +22,7 @@ import {
 } from "lucide-react"
 
 interface ProfileProps {
-  onNavigate: (page: string) => void
+  onNavigate: (page: string, data?: any) => void
 }
 
 export function Profile({ onNavigate }: ProfileProps) {

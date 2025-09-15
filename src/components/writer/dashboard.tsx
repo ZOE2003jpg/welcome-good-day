@@ -16,7 +16,7 @@ import {
 } from "lucide-react"
 
 interface DashboardProps {
-  onNavigate: (page: string) => void
+  onNavigate: (page: string, data?: any) => void
 }
 
 export function Dashboard({ onNavigate }: DashboardProps) {

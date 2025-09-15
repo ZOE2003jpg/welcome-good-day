@@ -17,7 +17,7 @@ import {
 } from "lucide-react"
 
 interface NotificationsProps {
-  onNavigate: (page: string) => void
+  onNavigate: (page: string, data?: any) => void
 }
 
 export function Notifications({ onNavigate }: NotificationsProps) {

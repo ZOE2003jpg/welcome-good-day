@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/alert-dialog"
 
 interface ManageStoriesProps {
-  onNavigate: (page: string) => void
+  onNavigate: (page: string, data?: any) => void
 }
 
 export function ManageStories({ onNavigate }: ManageStoriesProps) {

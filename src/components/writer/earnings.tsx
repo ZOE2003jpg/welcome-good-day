@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog"
 
 interface EarningsProps {
-  onNavigate: (page: string) => void
+  onNavigate: (page: string, data?: any) => void
 }
 
 export function Earnings({ onNavigate }: EarningsProps) {

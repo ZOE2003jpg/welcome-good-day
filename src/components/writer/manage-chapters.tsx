@@ -33,15 +33,16 @@ import {
 } from "@/components/ui/alert-dialog"
 
 interface ManageChaptersProps {
-  onNavigate: (page: string) => void
+  onNavigate: (page: string, data?: any) => void
+  story?: any
 }
 
-export function ManageChapters({ onNavigate }: ManageChaptersProps) {
+export function ManageChapters({ onNavigate, story: passedStory }: ManageChaptersProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [chapterToDelete, setChapterToDelete] = useState<number | null>(null)
 
-  // Mock story data
-  const story = {
+  // Use passed story data or fallback to mock
+  const story = passedStory || {
     id: 1,
     title: "The Digital Awakening",
     status: "published",

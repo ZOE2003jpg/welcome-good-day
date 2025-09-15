@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Upload, Save, BookOpen, Eye, Tags } from "lucide-react"
 
 interface CreateStoryProps {
-  onNavigate: (page: string) => void
+  onNavigate: (page: string, data?: any) => void
 }
 
 export function CreateStory({ onNavigate }: CreateStoryProps) {

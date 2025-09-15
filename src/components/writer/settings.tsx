@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/alert-dialog"
 
 interface SettingsProps {
-  onNavigate: (page: string) => void
+  onNavigate: (page: string, data?: any) => void
 }
 
 export function Settings({ onNavigate }: SettingsProps) {

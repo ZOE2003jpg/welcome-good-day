@@ -25,7 +25,7 @@ import {
 import { Line, LineChart, Bar, BarChart, Pie, PieChart, Cell, ResponsiveContainer, XAxis, YAxis } from "recharts"
 
 interface AnalyticsProps {
-  onNavigate: (page: string) => void
+  onNavigate: (page: string, data?: any) => void
 }
 
 export function Analytics({ onNavigate }: AnalyticsProps) {
