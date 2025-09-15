@@ -45,7 +45,7 @@ export function useStories() {
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setStories(data as Story[] || [])
+      setStories((data || []) as any)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch stories')
     } finally {

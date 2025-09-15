@@ -57,10 +57,14 @@ export function useLikes(userId?: string) {
         if (error) throw error
 
         // Update story like count
-        await supabase
+        const { error: decrementError } = await supabase
           .from('stories')
-          .update({ like_count: supabase.raw('like_count - 1') })
+          .update({ 
+            like_count: ((await supabase.from('stories').select('like_count').eq('id', storyId).single()).data?.like_count || 1) - 1 
+          })
           .eq('id', storyId)
+        
+        if (decrementError) throw decrementError
       } else {
         // Like
         const { error } = await supabase
@@ -73,10 +77,14 @@ export function useLikes(userId?: string) {
         if (error) throw error
 
         // Update story like count
-        await supabase
+        const { error: incrementError } = await supabase
           .from('stories')
-          .update({ like_count: supabase.raw('like_count + 1') })
+          .update({ 
+            like_count: ((await supabase.from('stories').select('like_count').eq('id', storyId).single()).data?.like_count || 0) + 1 
+          })
           .eq('id', storyId)
+        
+        if (incrementError) throw incrementError
       }
 
       await fetchLikes()

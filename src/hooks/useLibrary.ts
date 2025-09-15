@@ -43,7 +43,7 @@ export function useLibrary(userId?: string) {
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setLibrary(data as LibraryItem[] || [])
+      setLibrary((data || []) as any)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch library')
     } finally {
