@@ -6,43 +6,78 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Upload, Save, BookOpen, Eye, Tags } from "lucide-react"
+import { ArrowLeft, Upload, Save, BookOpen, Eye, Tags, Plus, X } from "lucide-react"
+import { useStories } from "@/hooks/useStories"
+import { useUser } from "@/components/user-context"
+import { toast } from "sonner"
 
 interface CreateStoryProps {
   onNavigate: (page: string, data?: any) => void
 }
 
 export function CreateStory({ onNavigate }: CreateStoryProps) {
+  const { user } = useUser()
+  const { createStory, loading } = useStories()
+  
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     genre: "",
-    tags: "",
+    tags: [] as string[],
     coverImage: null as File | null
   })
-
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [newTag, setNewTag] = useState("")
 
   const genres = [
     "Romance", "Fantasy", "Mystery", "Sci-Fi", "Horror", "Drama", 
     "Comedy", "Adventure", "Thriller", "Historical Fiction"
   ]
 
-  const handleTagAdd = (tag: string) => {
-    if (tag.trim() && !selectedTags.includes(tag.trim())) {
-      setSelectedTags([...selectedTags, tag.trim()])
-      setFormData({...formData, tags: ""})
+  const handleSubmit = async () => {
+    if (!user) {
+      toast.error("Please login to create stories")
+      return
+    }
+
+    if (!formData.title.trim()) {
+      toast.error("Please enter a story title")
+      return
+    }
+
+    try {
+      await createStory({
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        genre: formData.genre,
+        author_id: user.id,
+        tags: formData.tags
+      })
+      
+      toast.success("Story created successfully!")
+      onNavigate("dashboard")
+    } catch (error) {
+      toast.error("Failed to create story")
+    }
+  }
+
+  const handleTagAdd = () => {
+    if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
+      setFormData(prev => ({ ...prev, tags: [...prev.tags, newTag.trim()] }))
+      setNewTag("")
     }
   }
 
   const handleTagRemove = (tagToRemove: string) => {
-    setSelectedTags(selectedTags.filter(tag => tag !== tagToRemove))
+    setFormData(prev => ({ 
+      ...prev, 
+      tags: prev.tags.filter(tag => tag !== tagToRemove) 
+    }))
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && formData.tags.trim()) {
+    if (e.key === "Enter" && newTag.trim()) {
       e.preventDefault()
-      handleTagAdd(formData.tags)
+      handleTagAdd()
     }
   }
 
@@ -110,23 +145,28 @@ export function CreateStory({ onNavigate }: CreateStoryProps) {
               <div className="space-y-2">
                 <Label htmlFor="tags">Tags</Label>
                 <div className="space-y-2">
-                  <Input
-                    id="tags"
-                    placeholder="Add tags and press Enter..."
-                    value={formData.tags}
-                    onChange={(e) => setFormData({...formData, tags: e.target.value})}
-                    onKeyPress={handleKeyPress}
-                  />
-                  {selectedTags.length > 0 && (
+                  <div className="flex gap-2">
+                    <Input
+                      id="tags"
+                      placeholder="Add tags and press Enter..."
+                      value={newTag}
+                      onChange={(e) => setNewTag(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                    />
+                    <Button type="button" onClick={handleTagAdd} variant="outline">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {formData.tags.length > 0 && (
                     <div className="flex flex-wrap gap-2">
-                      {selectedTags.map((tag) => (
+                      {formData.tags.map((tag) => (
                         <Badge 
                           key={tag} 
                           variant="secondary" 
-                          className="cursor-pointer"
+                          className="cursor-pointer flex items-center gap-1"
                           onClick={() => handleTagRemove(tag)}
                         >
-                          {tag} ×
+                          {tag} <X className="h-3 w-3" />
                         </Badge>
                       ))}
                     </div>
@@ -210,17 +250,19 @@ export function CreateStory({ onNavigate }: CreateStoryProps) {
             <Button 
               variant="outline" 
               className="w-full" 
-              onClick={() => onNavigate("manage-stories")}
+              onClick={handleSubmit}
+              disabled={loading}
             >
               <Save className="h-4 w-4 mr-2" />
-              Save as Draft
+              {loading ? "Creating..." : "Save as Draft"}
             </Button>
             <Button 
               className="w-full vine-button-hero"
-              onClick={() => onNavigate("add-chapter")}
+              onClick={handleSubmit}
+              disabled={loading}
             >
               <BookOpen className="h-4 w-4 mr-2" />
-              Start Writing
+              {loading ? "Creating..." : "Create & Start Writing"}
             </Button>
           </div>
         </div>

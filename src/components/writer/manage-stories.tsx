@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { useStories } from "@/hooks/useStories"
+import { useUser } from "@/components/user-context"
+import { toast } from "sonner"
 import { 
   ArrowLeft, 
   Plus, 
@@ -37,80 +40,16 @@ interface ManageStoriesProps {
 }
 
 export function ManageStories({ onNavigate }: ManageStoriesProps) {
+  const { user } = useUser()
+  const { stories, loading, deleteStory, updateStory } = useStories()
   const [searchQuery, setSearchQuery] = useState("")
   const [filterStatus, setFilterStatus] = useState("all")
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [storyToDelete, setStoryToDelete] = useState<number | null>(null)
+  const [storyToDelete, setStoryToDelete] = useState<string | null>(null)
 
-  const mockStories = [
-    {
-      id: 1,
-      title: "The Digital Awakening",
-      status: "published",
-      reads: 15420,
-      likes: 1250,
-      comments: 340,
-      lastUpdated: "2 days ago",
-      chapters: 12,
-      createdAt: "March 15, 2024",
-      genre: "Sci-Fi",
-      cover: "/placeholder.svg"
-    },
-    {
-      id: 2,
-      title: "Memories in the Rain",
-      status: "draft",
-      reads: 0,
-      likes: 0,
-      comments: 0,
-      lastUpdated: "5 hours ago",
-      chapters: 3,
-      createdAt: "March 20, 2024",
-      genre: "Romance",
-      cover: "/placeholder.svg"
-    },
-    {
-      id: 3,
-      title: "The Last Algorithm",
-      status: "published",
-      reads: 8950,
-      likes: 670,
-      comments: 180,
-      lastUpdated: "1 week ago",
-      chapters: 8,
-      createdAt: "February 28, 2024",
-      genre: "Thriller",
-      cover: "/placeholder.svg"
-    },
-    {
-      id: 4,
-      title: "Echoes of Tomorrow",
-      status: "archived",
-      reads: 3200,
-      likes: 210,
-      comments: 45,
-      lastUpdated: "2 months ago",
-      chapters: 15,
-      createdAt: "January 10, 2024",
-      genre: "Fantasy",
-      cover: "/placeholder.svg"
-    },
-    {
-      id: 5,
-      title: "Urban Legends",
-      status: "draft",
-      reads: 0,
-      likes: 0,
-      comments: 0,
-      lastUpdated: "1 day ago",
-      chapters: 1,
-      createdAt: "March 22, 2024",
-      genre: "Horror",
-      cover: "/placeholder.svg"
-    }
-  ]
+  const userStories = stories.filter(story => story.author_id === user?.id)
 
-  const filteredStories = mockStories.filter(story => {
+  const filteredStories = userStories.filter(story => {
     const matchesSearch = story.title.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesFilter = filterStatus === "all" || story.status === filterStatus
     return matchesSearch && matchesFilter
@@ -125,15 +64,34 @@ export function ManageStories({ onNavigate }: ManageStoriesProps) {
     }
   }
 
-  const handleDeleteClick = (storyId: number) => {
+  const handleDeleteClick = (storyId: string) => {
     setStoryToDelete(storyId)
     setDeleteDialogOpen(true)
   }
 
-  const confirmDelete = () => {
-    // Handle delete logic here
+  const confirmDelete = async () => {
+    if (!storyToDelete) return
+    
+    try {
+      await deleteStory(storyToDelete)
+      toast.success("Story deleted successfully")
+    } catch (error) {
+      toast.error("Failed to delete story")
+    }
+    
     setDeleteDialogOpen(false)
     setStoryToDelete(null)
+  }
+
+  const toggleStatus = async (storyId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'published' ? 'draft' : 'published'
+    
+    try {
+      await updateStory(storyId, { status: newStatus as any })
+      toast.success(`Story ${newStatus === 'published' ? 'published' : 'unpublished'} successfully`)
+    } catch (error) {
+      toast.error("Failed to update story status")
+    }
   }
 
   return (
@@ -185,98 +143,105 @@ export function ManageStories({ onNavigate }: ManageStoriesProps) {
       </Card>
 
       {/* Stories Grid */}
-      <div className="grid gap-6">
-        {filteredStories.map((story) => (
-          <Card key={story.id} className="vine-card">
-            <CardContent className="p-6">
-              <div className="flex gap-6">
-                {/* Cover Image */}
-                <div className="w-20 h-28 bg-secondary/30 rounded-lg flex-shrink-0 flex items-center justify-center">
-                  <BookOpen className="h-8 w-8 text-muted-foreground" />
+      {loading ? (
+        <div className="text-center py-8">Loading stories...</div>
+      ) : (
+        <div className="grid gap-6">
+          {filteredStories.map((story) => (
+            <Card key={story.id} className="vine-card">
+              <CardContent className="p-6">
+                <div className="flex gap-6">
+                  {/* Cover Image */}
+                  <div className="w-20 h-28 bg-secondary/30 rounded-lg flex-shrink-0 flex items-center justify-center">
+                    {story.cover_image_url ? (
+                      <img src={story.cover_image_url} alt={story.title} className="w-full h-full object-cover rounded-lg" />
+                    ) : (
+                      <BookOpen className="h-8 w-8 text-muted-foreground" />
+                    )}
+                  </div>
+
+                  {/* Story Details */}
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="text-xl font-bold">{story.title}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {story.genre || "General"} • Created {new Date(story.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Badge variant={getStatusColor(story.status)}>
+                        {story.status}
+                      </Badge>
+                    </div>
+
+                    <div className="flex gap-6 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Eye className="h-4 w-4" />
+                        {story.view_count.toLocaleString()} reads
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4" />
+                        Updated {new Date(story.updated_at).toLocaleDateString()}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2">
+                      <div className="flex gap-4 text-sm">
+                        <span>{story.like_count} likes</span>
+                        <span>{story.comment_count} comments</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => toggleStatus(story.id, story.status)}
+                        >
+                          {story.status === 'published' ? 'Unpublish' : 'Publish'}
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => onNavigate("manage-chapters", story)}
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="outline">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => onNavigate("manage-chapters", story)}>
+                              <BookOpen className="h-4 w-4 mr-2" />
+                              View Chapters
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onNavigate("analytics", story)}>
+                              <Filter className="h-4 w-4 mr-2" />
+                              Analytics
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="text-destructive"
+                              onClick={() => handleDeleteClick(story.id)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
-                {/* Story Details */}
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="text-xl font-bold">{story.title}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {story.genre} • {story.chapters} chapters • Created {story.createdAt}
-                      </p>
-                    </div>
-                    <Badge variant={getStatusColor(story.status)}>
-                      {story.status}
-                    </Badge>
-                  </div>
-
-                  <div className="flex gap-6 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Eye className="h-4 w-4" />
-                      {story.reads.toLocaleString()} reads
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-4 w-4" />
-                      Updated {story.lastUpdated}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2">
-                    <div className="flex gap-4 text-sm">
-                      <span>{story.likes} likes</span>
-                      <span>{story.comments} comments</span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => onNavigate("manage-chapters")}
-                      >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => onNavigate("slide-reader")}
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        Preview
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button size="sm" variant="outline">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => onNavigate("manage-chapters")}>
-                            <BookOpen className="h-4 w-4 mr-2" />
-                            View Chapters
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Filter className="h-4 w-4 mr-2" />
-                            Analytics
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            className="text-destructive"
-                            onClick={() => handleDeleteClick(story.id)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {filteredStories.length === 0 && (
+      {filteredStories.length === 0 && !loading && (
         <Card className="vine-card">
           <CardContent className="pt-6 pb-6 text-center">
             <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />

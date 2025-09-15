@@ -1,4 +1,8 @@
 import { Button } from "@/components/ui/button"
+import { useStories } from "@/hooks/useStories"
+import { useAnalytics } from "@/hooks/useAnalytics"
+import { useEarnings } from "@/hooks/useEarnings"
+import { useUser } from "@/components/user-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { 
@@ -20,33 +24,40 @@ interface DashboardProps {
 }
 
 export function Dashboard({ onNavigate }: DashboardProps) {
+  const { user } = useUser()
+  const { stories, loading: storiesLoading } = useStories()
+  const { analytics } = useAnalytics(user?.id)
+  const { totalEarnings, earnings } = useEarnings(user?.id)
+
+  const userStories = stories.filter(story => story.author_id === user?.id)
+  
   const stats = {
-    totalStories: 12,
-    totalReads: 15420,
-    totalLikes: 1250,
-    totalComments: 340,
-    earnings: 245.80,
-    followers: 89
+    totalStories: userStories.length,
+    totalReads: userStories.reduce((sum, story) => sum + story.view_count, 0),
+    totalLikes: userStories.reduce((sum, story) => sum + story.like_count, 0),
+    totalComments: userStories.reduce((sum, story) => sum + story.comment_count, 0),
+    earnings: totalEarnings,
+    followers: 0 // This would come from a followers table in a real app
   }
 
   const recentNotifications = [
     {
       id: 1,
-      message: "New comment on \"The Digital Awakening\"",
+      message: "New story analytics available",
       time: "2 hours ago",
-      type: "comment"
+      type: "analytics"
     },
     {
       id: 2,
-      message: "Your story reached 5000+ reads!",
+      message: `Total earnings: $${totalEarnings.toFixed(2)}`,
       time: "1 day ago", 
-      type: "milestone"
+      type: "earnings"
     },
     {
       id: 3,
-      message: "Weekly analytics report is ready",
+      message: `${stats.totalStories} stories published`,
       time: "3 days ago",
-      type: "report"
+      type: "milestone"
     }
   ]
 
@@ -74,7 +85,9 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <BookOpen className="h-6 w-6 text-primary mx-auto mb-2" />
-            <div className="text-2xl font-bold">{stats.totalStories}</div>
+            <div className="text-2xl font-bold">
+              {storiesLoading ? "..." : stats.totalStories}
+            </div>
             <div className="text-sm text-muted-foreground">Stories</div>
           </CardContent>
         </Card>
@@ -82,7 +95,9 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <Eye className="h-6 w-6 text-primary mx-auto mb-2" />
-            <div className="text-2xl font-bold">{stats.totalReads.toLocaleString()}</div>
+            <div className="text-2xl font-bold">
+              {storiesLoading ? "..." : stats.totalReads.toLocaleString()}
+            </div>
             <div className="text-sm text-muted-foreground">Reads</div>
           </CardContent>
         </Card>
@@ -90,7 +105,9 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <Heart className="h-6 w-6 text-primary mx-auto mb-2" />
-            <div className="text-2xl font-bold">{stats.totalLikes.toLocaleString()}</div>
+            <div className="text-2xl font-bold">
+              {storiesLoading ? "..." : stats.totalLikes.toLocaleString()}
+            </div>
             <div className="text-sm text-muted-foreground">Likes</div>
           </CardContent>
         </Card>
@@ -98,7 +115,9 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <MessageCircle className="h-6 w-6 text-primary mx-auto mb-2" />
-            <div className="text-2xl font-bold">{stats.totalComments}</div>
+            <div className="text-2xl font-bold">
+              {storiesLoading ? "..." : stats.totalComments}
+            </div>
             <div className="text-sm text-muted-foreground">Comments</div>
           </CardContent>
         </Card>
@@ -106,7 +125,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <DollarSign className="h-6 w-6 text-primary mx-auto mb-2" />
-            <div className="text-2xl font-bold">${stats.earnings}</div>
+            <div className="text-2xl font-bold">${stats.earnings.toFixed(2)}</div>
             <div className="text-sm text-muted-foreground">Earnings</div>
           </CardContent>
         </Card>

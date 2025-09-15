@@ -1,4 +1,9 @@
 import { useState } from "react"
+import { useStories } from "@/hooks/useStories"
+import { useLikes } from "@/hooks/useLikes"
+import { useLibrary } from "@/hooks/useLibrary"
+import { useUser } from "@/components/user-context"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -19,77 +24,49 @@ interface DiscoverPageProps {
 
 export function DiscoverPage({ onNavigate }: DiscoverPageProps) {
   const [selectedGenre, setSelectedGenre] = useState("all")
+  const { stories, loading } = useStories()
+  const { user } = useUser()
+  const { toggleLike, isLiked } = useLikes(user?.id)
+  const { addToLibrary, isInLibrary } = useLibrary(user?.id)
 
-  const featuredStories = [
-    {
-      id: 1,
-      title: "The Quantum Paradox",
-      author: "Dr. Marcus Reid",
-      description: "A mind-bending journey through parallel dimensions where reality bends to quantum mechanics.",
-      cover: "/api/placeholder/200/300",
-      reads: "12.5K",
-      rating: 4.8,
-      genre: "Sci-Fi",
-      chapters: 24,
-      isNew: true
-    },
-    {
-      id: 2,
-      title: "Echoes of Tomorrow",
-      author: "Luna Martinez",
-      description: "In a world where memories can be traded, one woman fights to keep her past.",
-      cover: "/api/placeholder/200/300",
-      reads: "8.3K",
-      rating: 4.6,
-      genre: "Drama",
-      chapters: 18,
-      isNew: false
-    },
-    {
-      id: 3,
-      title: "The Silent Code",
-      author: "Alex Thompson",
-      description: "A cyberpunk thriller about hackers uncovering a conspiracy that goes to the highest levels.",
-      cover: "/api/placeholder/200/300",
-      reads: "15.2K",
-      rating: 4.9,
-      genre: "Thriller",
-      chapters: 32,
-      isNew: false
+  const handleLike = async (storyId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!user) {
+      toast.error("Please login to like stories")
+      return
     }
-  ]
-
-  const trendingStories = [
-    {
-      id: 4,
-      title: "Digital Hearts",
-      author: "Sarah Kim",
-      reads: "9.8K",
-      rating: 4.7,
-      genre: "Romance",
-      chapters: 15
-    },
-    {
-      id: 5,
-      title: "The Last Sanctuary",
-      author: "Michael Torres",
-      reads: "11.2K",
-      rating: 4.5,
-      genre: "Fantasy",
-      chapters: 28
-    },
-    {
-      id: 6,
-      title: "Neon Nights",
-      author: "Zoe Chen",
-      reads: "7.6K",
-      rating: 4.8,
-      genre: "Mystery",
-      chapters: 20
+    try {
+      await toggleLike(storyId, user.id)
+      toast.success("Story liked!")
+    } catch (error) {
+      toast.error("Failed to like story")
     }
-  ]
+  }
 
-  const genres = ["all", "Sci-Fi", "Romance", "Fantasy", "Thriller", "Drama", "Mystery"]
+  const handleAddToLibrary = async (storyId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!user) {
+      toast.error("Please login to save stories")
+      return
+    }
+    try {
+      await addToLibrary(storyId, user.id)
+      toast.success("Added to library!")
+    } catch (error) {
+      toast.error("Failed to add to library")
+    }
+  }
+
+  const filteredStories = stories.filter(story => 
+    selectedGenre === "all" || story.genre === selectedGenre
+  )
+
+  const featuredStories = filteredStories.slice(0, 6)
+  const trendingStories = filteredStories
+    .sort((a, b) => b.view_count - a.view_count)
+    .slice(0, 6)
+
+  const genres = ["all", ...Array.from(new Set(stories.map(story => story.genre).filter(Boolean)))]
 
   return (
     <div className="space-y-8">
@@ -141,42 +118,67 @@ export function DiscoverPage({ onNavigate }: DiscoverPageProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredStories.map((story) => (
-              <Card key={story.id} className="vine-card hover-scale cursor-pointer" onClick={() => onNavigate("details", story)}>
-                <div className="aspect-[3/4] bg-muted/30 rounded-t-lg mb-4 flex items-center justify-center">
-                  <BookOpen className="h-12 w-12 text-muted-foreground" />
-                </div>
-                <CardContent className="pt-0">
-                  <div className="flex justify-between items-start mb-2">
-                    <Badge variant={story.isNew ? "default" : "outline"} className="mb-2">
-                      {story.isNew ? "New" : story.genre}
-                    </Badge>
-                    <Button size="sm" variant="ghost" onClick={(e) => {e.stopPropagation()}}>
-                      <Bookmark className="h-4 w-4" />
-                    </Button>
+          {loading ? (
+            <div className="text-center py-8">Loading stories...</div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {featuredStories.map((story) => (
+                <Card key={story.id} className="vine-card hover-scale cursor-pointer" onClick={() => onNavigate("details", story)}>
+                  <div className="aspect-[3/4] bg-muted/30 rounded-t-lg mb-4 flex items-center justify-center">
+                    {story.cover_image_url ? (
+                      <img src={story.cover_image_url} alt={story.title} className="w-full h-full object-cover rounded-t-lg" />
+                    ) : (
+                      <BookOpen className="h-12 w-12 text-muted-foreground" />
+                    )}
                   </div>
-                  <h3 className="font-semibold text-lg mb-1">{story.title}</h3>
-                  <p className="text-sm text-muted-foreground mb-2">by {story.author}</p>
-                  <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{story.description}</p>
-                  
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1">
-                        <Eye className="h-4 w-4" />
-                        {story.reads}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Star className="h-4 w-4 fill-primary text-primary" />
-                        {story.rating}
+                  <CardContent className="pt-0">
+                    <div className="flex justify-between items-start mb-2">
+                      <Badge variant="outline" className="mb-2">
+                        {story.genre || "General"}
+                      </Badge>
+                      <div className="flex gap-1">
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={(e) => handleLike(story.id, e)}
+                          className={isLiked(story.id) ? "text-primary" : ""}
+                        >
+                          <Heart className={`h-4 w-4 ${isLiked(story.id) ? "fill-primary" : ""}`} />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={(e) => handleAddToLibrary(story.id, e)}
+                          className={isInLibrary(story.id) ? "text-primary" : ""}
+                        >
+                          <Bookmark className={`h-4 w-4 ${isInLibrary(story.id) ? "fill-primary" : ""}`} />
+                        </Button>
                       </div>
                     </div>
-                    <span className="text-muted-foreground">{story.chapters} chapters</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    <h3 className="font-semibold text-lg mb-1">{story.title}</h3>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      by {story.profiles?.display_name || story.profiles?.username || "Anonymous"}
+                    </p>
+                    <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{story.description || "No description available"}</p>
+                    
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1">
+                          <Eye className="h-4 w-4" />
+                          {story.view_count}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Heart className="h-4 w-4 text-primary" />
+                          {story.like_count}
+                        </div>
+                      </div>
+                      <span className="text-muted-foreground">{story.comment_count} comments</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -200,24 +202,31 @@ export function DiscoverPage({ onNavigate }: DiscoverPageProps) {
                       </div>
                       <div>
                         <h3 className="font-semibold text-lg">{story.title}</h3>
-                        <p className="text-muted-foreground">by {story.author}</p>
+                        <p className="text-muted-foreground">
+                          by {story.profiles?.display_name || story.profiles?.username || "Anonymous"}
+                        </p>
                         <div className="flex items-center gap-4 mt-2">
-                          <Badge variant="outline">{story.genre}</Badge>
+                          <Badge variant="outline">{story.genre || "General"}</Badge>
                           <div className="flex items-center gap-1 text-sm">
                             <Eye className="h-4 w-4" />
-                            {story.reads}
+                            {story.view_count}
                           </div>
                           <div className="flex items-center gap-1 text-sm">
-                            <Star className="h-4 w-4 fill-primary text-primary" />
-                            {story.rating}
+                            <Heart className="h-4 w-4 text-primary" />
+                            {story.like_count}
                           </div>
-                          <span className="text-sm text-muted-foreground">{story.chapters} chapters</span>
+                          <span className="text-sm text-muted-foreground">{story.comment_count} comments</span>
                         </div>
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={(e) => {e.stopPropagation()}}>
-                        <Bookmark className="h-4 w-4" />
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={(e) => handleAddToLibrary(story.id, e)}
+                        className={isInLibrary(story.id) ? "text-primary" : ""}
+                      >
+                        <Bookmark className={`h-4 w-4 ${isInLibrary(story.id) ? "fill-primary" : ""}`} />
                       </Button>
                       <Button size="sm" className="vine-button-hero" onClick={(e) => {e.stopPropagation(); onNavigate("reader", story)}}>
                         Read Now
