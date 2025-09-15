@@ -12,6 +12,12 @@ import {
   Play,
   SkipForward
 } from "lucide-react"
+import { useSlides } from "@/hooks/useSlides"
+import { useReads } from "@/hooks/useReads"
+import { useLikes } from "@/hooks/useLikes"
+import { useAds } from "@/hooks/useAds"
+import { useUser } from "@/components/user-context"
+import { toast } from "sonner"
 
 interface SlideReaderProps {
   story: any
@@ -19,35 +25,78 @@ interface SlideReaderProps {
 }
 
 export function SlideReader({ story, onNavigate }: SlideReaderProps) {
+  const { user } = useUser()
   const [currentSlide, setCurrentSlide] = useState(1)
   const [showMenu, setShowMenu] = useState(false)
   const [showAd, setShowAd] = useState(false)
   const [adCountdown, setAdCountdown] = useState(5)
-  const [isLiked, setIsLiked] = useState(false)
+  const [currentAd, setCurrentAd] = useState<any>(null)
+  const [allSlides, setAllSlides] = useState<any[]>([])
+  const [currentChapter, setCurrentChapter] = useState<string | null>(null)
+  
+  const { getSlidesWithAds } = useSlides()
+  const { trackProgress, getReadingProgress } = useReads(user?.id)
+  const { toggleLike, isLiked } = useLikes(user?.id)
+  const { incrementImpressions, incrementClicks } = useAds()
 
-  const totalSlides = 24
-  const progress = Math.round((currentSlide / totalSlides) * 100)
+  const totalSlides = allSlides.length
+  const progress = totalSlides > 0 ? Math.round((currentSlide / totalSlides) * 100) : 0
 
-  const slides = [
-    {
-      content: "The city never slept, but tonight it seemed to pulse with an otherworldly energy. Neon lights flickered in patterns that Maya had never noticed before, creating a rhythm that matched her racing heartbeat. She paused at the intersection, watching the streams of data that now seemed visible in the air around her."
-    },
-    {
-      content: "The enhancement had worked, perhaps too well. What Dr. Chen had promised would be a simple cognitive boost had unleashed something far more complex. Maya could see the digital infrastructure of the city laid bare before her eyes - fiber optic cables pulsing with light beneath the streets, wireless signals dancing between buildings like aurora borealis."
-    },
-    {
-      content: "Her phone buzzed with a message from an unknown number: 'They know what you can see now. Run.' Maya's enhanced vision immediately traced the signal's path, revealing it had bounced through seventeen different servers across three continents before reaching her device. Someone was being very careful to stay hidden."
-    }
-    // Add more slides as needed
-  ]
-
-  // Show ad every 6 slides
+  // Load slides with ads when story/chapter changes
   useEffect(() => {
-    if (currentSlide % 6 === 0 && currentSlide > 0) {
+    const loadSlidesWithAds = async () => {
+      if (!story?.id) return
+      
+      // For now, assume we're reading the first chapter
+      // In a real app, you'd pass the current chapter ID
+      const firstChapter = story.chapters?.[0]
+      if (!firstChapter) return
+
+      setCurrentChapter(firstChapter.id)
+      
+      try {
+        const slidesData = await getSlidesWithAds(firstChapter.id, user?.id)
+        setAllSlides(slidesData.slides || [])
+      } catch (error) {
+        console.error('Failed to load slides:', error)
+        toast.error('Failed to load story content')
+      }
+    }
+
+    loadSlidesWithAds()
+  }, [story, user?.id])
+
+  // Track reading progress
+  useEffect(() => {
+    if (!user?.id || !story?.id || !currentChapter || totalSlides === 0) return
+
+    const trackCurrentProgress = async () => {
+      try {
+        const isCompleted = currentSlide === totalSlides
+        await trackProgress(user.id, story.id, currentChapter, currentSlide, isCompleted)
+      } catch (error) {
+        console.error('Failed to track progress:', error)
+      }
+    }
+
+    const timeoutId = setTimeout(trackCurrentProgress, 2000) // Track after 2 seconds on slide
+    return () => clearTimeout(timeoutId)
+  }, [currentSlide, user?.id, story?.id, currentChapter, totalSlides])
+
+  // Handle ad display
+  useEffect(() => {
+    const currentSlideData = allSlides[currentSlide - 1]
+    if (currentSlideData && currentSlideData.type === 'ad') {
+      setCurrentAd(currentSlideData.ad)
       setShowAd(true)
       setAdCountdown(5)
+      
+      // Track ad impression
+      if (currentSlideData.ad?.id) {
+        incrementImpressions(currentSlideData.ad.id)
+      }
     }
-  }, [currentSlide])
+  }, [currentSlide, allSlides])
 
   // Ad countdown
   useEffect(() => {
@@ -72,6 +121,29 @@ export function SlideReader({ story, onNavigate }: SlideReaderProps) {
   const skipAd = () => {
     setShowAd(false)
     setAdCountdown(5)
+    setCurrentAd(null)
+  }
+
+  const handleAdClick = () => {
+    if (currentAd?.id) {
+      incrementClicks(currentAd.id)
+    }
+    // Handle ad click action
+    toast.info('Ad clicked!')
+  }
+
+  const handleLikeToggle = async () => {
+    if (!user?.id || !story?.id) {
+      toast.error('Please login to like stories')
+      return
+    }
+
+    try {
+      await toggleLike(story.id, user.id)
+      toast.success(isLiked(story.id) ? 'Story liked!' : 'Like removed')
+    } catch (error) {
+      toast.error('Failed to update like')
+    }
   }
 
   const handleSlideNavigation = (e: React.MouseEvent) => {
@@ -103,12 +175,24 @@ export function SlideReader({ story, onNavigate }: SlideReaderProps) {
               </p>
             </div>
             <div className="bg-muted/50 rounded-lg p-6">
-              <p className="text-lg font-medium">
-                Discover amazing stories on VineNovel Premium
-              </p>
-              <p className="text-muted-foreground mt-2">
-                Ad-free reading experience with exclusive content
-              </p>
+              {currentAd ? (
+                <>
+                  <p className="text-lg font-medium">{currentAd.title || 'Advertisement'}</p>
+                  <p className="text-muted-foreground mt-2">{currentAd.description || 'Sponsored content'}</p>
+                  {currentAd.video_url && (
+                    <video 
+                      src={currentAd.video_url} 
+                      className="w-full h-32 object-cover rounded mt-4"
+                      controls
+                    />
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="text-lg font-medium">Discover amazing stories on VineNovel Premium</p>
+                  <p className="text-muted-foreground mt-2">Ad-free reading experience with exclusive content</p>
+                </>
+              )}
             </div>
             <div className="flex justify-center gap-4">
               <Button 
@@ -126,7 +210,7 @@ export function SlideReader({ story, onNavigate }: SlideReaderProps) {
                   </>
                 )}
               </Button>
-              <Button className="vine-button-hero">
+              <Button className="vine-button-hero" onClick={handleAdClick}>
                 Learn More
               </Button>
             </div>
@@ -177,11 +261,11 @@ export function SlideReader({ story, onNavigate }: SlideReaderProps) {
             <div className="flex justify-center gap-4">
               <Button
                 size="sm"
-                variant={isLiked ? "default" : "outline"}
-                onClick={() => setIsLiked(!isLiked)}
+                variant={story?.id && isLiked(story.id) ? "default" : "outline"}
+                onClick={handleLikeToggle}
               >
-                <Heart className={`h-4 w-4 mr-2 ${isLiked ? 'fill-current' : ''}`} />
-                {isLiked ? 'Liked' : 'Like'}
+                <Heart className={`h-4 w-4 mr-2 ${story?.id && isLiked(story.id) ? 'fill-current' : ''}`} />
+                {story?.id && isLiked(story.id) ? 'Liked' : 'Like'}
               </Button>
               <Button size="sm" variant="outline">
                 <MessageCircle className="h-4 w-4 mr-2" />
@@ -213,7 +297,7 @@ export function SlideReader({ story, onNavigate }: SlideReaderProps) {
         <div className="max-w-4xl mx-auto px-8 py-16">
           <div className="prose prose-lg lg:prose-xl max-w-none text-center">
             <p className="text-xl lg:text-2xl leading-relaxed">
-              {slides[Math.min(currentSlide - 1, slides.length - 1)]?.content}
+              {allSlides[currentSlide - 1]?.content || 'Loading slide content...'}
             </p>
           </div>
         </div>

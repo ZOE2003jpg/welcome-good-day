@@ -17,16 +17,24 @@ import {
   Clock,
   Type
 } from "lucide-react"
+import { useChapters } from "@/hooks/useChapters"
+import { useSlides } from "@/hooks/useSlides"
+import { useUser } from "@/components/user-context"
+import { toast } from "sonner"
 
 interface AddChapterProps {
   onNavigate: (page: string, data?: any) => void
 }
 
 export function AddChapter({ onNavigate }: AddChapterProps) {
+  const { user } = useUser()
+  const { createChapter, loading } = useChapters()
+  const { splitChapterToSlides } = useSlides()
+  
   const [chapterData, setChapterData] = useState({
     title: "",
-    description: "",
-    content: ""
+    content: "",
+    storyId: "" // In a real app, this would come from navigation context
   })
   
   const [slides, setSlides] = useState<string[]>([])
@@ -36,7 +44,13 @@ export function AddChapter({ onNavigate }: AddChapterProps) {
   const estimatedSlides = Math.ceil(wordCount / wordsPerSlide)
   const readingTime = Math.ceil(wordCount / 200) // Average reading speed
 
-  const splitIntoSlides = () => {
+  const splitIntoSlides = async () => {
+    if (!chapterData.content.trim()) {
+      toast.error("Please enter chapter content first")
+      return
+    }
+
+    // Simple client-side splitting for preview
     const words = chapterData.content.split(" ")
     const newSlides = []
     
@@ -46,6 +60,39 @@ export function AddChapter({ onNavigate }: AddChapterProps) {
     }
     
     setSlides(newSlides)
+    toast.success(`Chapter split into ${newSlides.length} slides`)
+  }
+
+  const handleSaveChapter = async () => {
+    if (!user) {
+      toast.error("Please login to create chapters")
+      return
+    }
+
+    if (!chapterData.title.trim() || !chapterData.content.trim()) {
+      toast.error("Please fill in title and content")
+      return
+    }
+
+    try {
+      // Create the chapter first
+      const chapter = await createChapter({
+        title: chapterData.title,
+        content: chapterData.content,
+        story_id: chapterData.storyId,
+        chapter_number: 1 // In real app, calculate this
+      })
+
+      // Split into slides using edge function
+      if (chapter) {
+        await splitChapterToSlides(chapter.id, chapterData.content, wordsPerSlide)
+      }
+
+      toast.success("Chapter created and split into slides!")
+      onNavigate("manage-chapters")
+    } catch (error) {
+      toast.error("Failed to create chapter")
+    }
   }
 
   const handleReSplit = (newWordsPerSlide: number) => {
@@ -99,17 +146,6 @@ export function AddChapter({ onNavigate }: AddChapterProps) {
                   onChange={(e) => setChapterData({...chapterData, title: e.target.value})}
                 />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="chapter-description">Chapter Description (Optional)</Label>
-                <Textarea
-                  id="chapter-description"
-                  placeholder="Brief description of what happens in this chapter..."
-                  value={chapterData.description}
-                  onChange={(e) => setChapterData({...chapterData, description: e.target.value})}
-                  rows={3}
-                />
-              </div>
             </CardContent>
           </Card>
 
@@ -132,7 +168,7 @@ export function AddChapter({ onNavigate }: AddChapterProps) {
               />
               
               <div className="flex gap-2">
-                <Button onClick={splitIntoSlides} disabled={!chapterData.content}>
+                <Button onClick={splitIntoSlides} disabled={!chapterData.content || loading}>
                   <Split className="h-4 w-4 mr-2" />
                   Split Preview
                 </Button>
@@ -222,17 +258,26 @@ export function AddChapter({ onNavigate }: AddChapterProps) {
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button variant="outline" className="w-full justify-start">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={handleSaveChapter}
+                disabled={loading}
+              >
                 <Save className="h-4 w-4 mr-2" />
-                Save Draft
+                {loading ? "Saving..." : "Save Draft"}
               </Button>
               <Button variant="outline" className="w-full justify-start">
                 <Eye className="h-4 w-4 mr-2" />
                 Preview Reader Mode
               </Button>
-              <Button className="w-full vine-button-hero justify-start" onClick={() => onNavigate("manage-chapters")}>
+              <Button 
+                className="w-full vine-button-hero justify-start" 
+                onClick={handleSaveChapter}
+                disabled={loading}
+              >
                 <BookOpen className="h-4 w-4 mr-2" />
-                Publish Chapter
+                {loading ? "Publishing..." : "Publish Chapter"}
               </Button>
             </CardContent>
           </Card>

@@ -9,6 +9,7 @@ export interface Ad {
   impressions: number
   clicks: number
   created_at: string
+  status?: string
 }
 
 export function useAds() {

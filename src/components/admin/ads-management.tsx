@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -17,50 +17,70 @@ import {
   Target,
   BarChart3
 } from "lucide-react"
+import { useAds } from "@/hooks/useAds"
+import { useSystemSettings } from "@/hooks/useSystemSettings"
+import { supabase } from "@/integrations/supabase/client"
+import { toast } from "sonner"
 
 interface AdsManagementProps {
   onNavigate: (page: string, data?: any) => void
 }
 
 export function AdsManagement({ onNavigate }: AdsManagementProps) {
+  const { ads, loading, createAd, updateAd, deleteAd } = useAds()
+  const { getSetting, updateSetting } = useSystemSettings()
   const [adFrequency, setAdFrequency] = useState("6")
   const [skipDelay, setSkipDelay] = useState("5")
 
-  const mockAds = [
-    {
-      id: 1,
-      title: "Mobile Game Ad",
-      duration: 15,
-      status: "active",
-      impressions: 45200,
-      clicks: 3240,
-      ctr: 7.2,
-      revenue: 2847.50,
-      uploadDate: "Jan 15, 2024"
-    },
-    {
-      id: 2,
-      title: "Fashion Brand",
-      duration: 30,
-      status: "active",
-      impressions: 32000,
-      clicks: 1890,
-      ctr: 5.9,
-      revenue: 1950.00,
-      uploadDate: "Feb 1, 2024"
-    },
-    {
-      id: 3,
-      title: "Food Delivery",
-      duration: 20,
-      status: "paused",
-      impressions: 28500,
-      clicks: 2100,
-      ctr: 7.4,
-      revenue: 1425.75,
-      uploadDate: "Jan 20, 2024"
+  // Load current settings
+  useEffect(() => {
+    const frequency = getSetting('ads_frequency')
+    const delay = getSetting('ads_skip_delay')
+    if (frequency) setAdFrequency(frequency)
+    if (delay) setSkipDelay(delay)
+  }, [getSetting])
+
+  const handleSaveSettings = async () => {
+    try {
+      await updateSetting('ads_frequency', adFrequency)
+      await updateSetting('ads_skip_delay', skipDelay)
+      toast.success('Settings saved successfully')
+    } catch (error) {
+      toast.error('Failed to save settings')
     }
-  ]
+  }
+
+  const handleToggleAdStatus = async (adId: string, currentStatus: string) => {
+    try {
+      const newStatus = currentStatus === 'active' ? 'paused' : 'active'
+      await updateAd(adId, { status: newStatus })
+      toast.success(`Ad ${newStatus === 'active' ? 'activated' : 'paused'}`)
+    } catch (error) {
+      toast.error('Failed to update ad status')
+    }
+  }
+
+  // Realtime subscription for ads
+  useEffect(() => {
+    const channel = supabase
+      .channel('ads-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'ads'
+        },
+        () => {
+          window.location.reload()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
 
   const adPerformanceData = [
     { date: "Jan 1", impressions: 4200, clicks: 315, revenue: 245 },
@@ -167,7 +187,7 @@ export function AdsManagement({ onNavigate }: AdsManagementProps) {
             </div>
           </div>
           
-          <Button className="vine-button-hero">
+          <Button className="vine-button-hero" onClick={handleSaveSettings}>
             <Settings className="h-4 w-4 mr-2" />
             Save Settings
           </Button>
@@ -240,7 +260,12 @@ export function AdsManagement({ onNavigate }: AdsManagementProps) {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {mockAds.map((ad) => (
+            {loading ? (
+              <div className="text-center py-8">Loading ads...</div>
+            ) : ads.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">No ads found</div>
+            ) : (
+              ads.map((ad) => (
               <Card key={ad.id} className="vine-card">
                 <CardContent className="pt-6">
                   <div className="flex flex-col lg:flex-row gap-6">
@@ -254,31 +279,31 @@ export function AdsManagement({ onNavigate }: AdsManagementProps) {
                       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                         <div className="space-y-2">
                           <div className="flex items-center gap-3">
-                            <h3 className="text-lg font-semibold">{ad.title}</h3>
-                            <Badge variant={getStatusColor(ad.status) as any}>
-                              {ad.status}
+                            <h3 className="text-lg font-semibold">Ad Campaign</h3>
+                            <Badge variant="default">
+                              Active
                             </Badge>
                           </div>
                           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                             <div>
-                              <span className="text-muted-foreground">Duration:</span>
-                              <span className="ml-2 font-medium">{ad.duration}s</span>
+                              <span className="text-muted-foreground">Video URL:</span>
+                              <span className="ml-2 font-medium text-xs">{ad.video_url.slice(0, 30)}...</span>
                             </div>
                             <div>
                               <span className="text-muted-foreground">Impressions:</span>
                               <span className="ml-2 font-medium">{ad.impressions.toLocaleString()}</span>
                             </div>
                             <div>
-                              <span className="text-muted-foreground">CTR:</span>
-                              <span className="ml-2 font-medium">{ad.ctr}%</span>
+                              <span className="text-muted-foreground">Clicks:</span>
+                              <span className="ml-2 font-medium">{ad.clicks.toLocaleString()}</span>
                             </div>
                             <div>
-                              <span className="text-muted-foreground">Revenue:</span>
-                              <span className="ml-2 font-medium text-primary">${ad.revenue.toLocaleString()}</span>
+                              <span className="text-muted-foreground">CTR:</span>
+                              <span className="ml-2 font-medium">{ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(2) : 0}%</span>
                             </div>
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            Uploaded: {ad.uploadDate}
+                            Created: {new Date(ad.created_at).toLocaleDateString()}
                           </p>
                         </div>
 
@@ -294,17 +319,14 @@ export function AdsManagement({ onNavigate }: AdsManagementProps) {
                             View Reports
                           </Button>
 
-                          {ad.status === "active" ? (
-                            <Button size="sm" variant="outline">
-                              <Clock className="h-4 w-4 mr-1" />
-                              Pause
-                            </Button>
-                          ) : (
-                            <Button size="sm" variant="outline">
-                              <Play className="h-4 w-4 mr-1" />
-                              Resume
-                            </Button>
-                          )}
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleToggleAdStatus(ad.id, 'active')}
+                          >
+                            <Clock className="h-4 w-4 mr-1" />
+                            Pause
+                          </Button>
 
                           <Button size="sm" variant="outline">
                             <Settings className="h-4 w-4 mr-1" />
@@ -316,7 +338,8 @@ export function AdsManagement({ onNavigate }: AdsManagementProps) {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
@@ -326,15 +349,15 @@ export function AdsManagement({ onNavigate }: AdsManagementProps) {
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-primary">
-              {mockAds.filter(a => a.status === "active").length}
+              {ads.length}
             </div>
-            <div className="text-sm text-muted-foreground">Active Campaigns</div>
+            <div className="text-sm text-muted-foreground">Total Campaigns</div>
           </CardContent>
         </Card>
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">
-              {mockAds.reduce((sum, a) => sum + a.impressions, 0).toLocaleString()}
+              {ads.reduce((sum, a) => sum + a.impressions, 0).toLocaleString()}
             </div>
             <div className="text-sm text-muted-foreground">Total Impressions</div>
           </CardContent>
@@ -342,17 +365,19 @@ export function AdsManagement({ onNavigate }: AdsManagementProps) {
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">
-              {((mockAds.reduce((sum, a) => sum + a.clicks, 0) / mockAds.reduce((sum, a) => sum + a.impressions, 0)) * 100).toFixed(1)}%
+              {ads.reduce((sum, a) => sum + a.clicks, 0).toLocaleString()}
             </div>
-            <div className="text-sm text-muted-foreground">Average CTR</div>
+            <div className="text-sm text-muted-foreground">Total Clicks</div>
           </CardContent>
         </Card>
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-primary">
-              ${mockAds.reduce((sum, a) => sum + a.revenue, 0).toLocaleString()}
+              {ads.reduce((sum, a) => sum + a.impressions, 0) > 0 
+                ? ((ads.reduce((sum, a) => sum + a.clicks, 0) / ads.reduce((sum, a) => sum + a.impressions, 0)) * 100).toFixed(1)
+                : 0}%
             </div>
-            <div className="text-sm text-muted-foreground">Total Revenue</div>
+            <div className="text-sm text-muted-foreground">Average CTR</div>
           </CardContent>
         </Card>
       </div>
