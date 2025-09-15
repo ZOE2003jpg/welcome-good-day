@@ -14,6 +14,7 @@ import {
   BookOpen,
   Clock
 } from "lucide-react"
+import { useProfiles } from '@/hooks/useProfiles'
 
 interface ReadersManagementProps {
   onNavigate: (page: string, data?: any) => void
@@ -22,66 +23,15 @@ interface ReadersManagementProps {
 export function ReadersManagement({ onNavigate }: ReadersManagementProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const { profiles, loading, error } = useProfiles()
 
-  const mockReaders = [
-    {
-      id: 1,
-      name: "Emma Wilson",
-      email: "emma@example.com",
-      status: "active",
-      joinDate: "Jan 15, 2024",
-      novelsRead: 45,
-      timeSpent: "120 hours",
-      favoriteGenre: "Romance",
-      lastActive: "2 hours ago",
-      reports: 0,
-      comments: 150
-    },
-    {
-      id: 2,
-      name: "David Johnson",
-      email: "david@example.com",
-      status: "active",
-      joinDate: "Feb 3, 2024",
-      novelsRead: 28,
-      timeSpent: "85 hours",
-      favoriteGenre: "Sci-Fi",
-      lastActive: "1 day ago",
-      reports: 1,
-      comments: 89
-    },
-    {
-      id: 3,
-      name: "Lisa Brown",
-      email: "lisa@example.com",
-      status: "suspended",
-      joinDate: "Dec 20, 2023",
-      novelsRead: 67,
-      timeSpent: "200 hours",
-      favoriteGenre: "Fantasy",
-      lastActive: "5 days ago",
-      reports: 3,
-      comments: 245
-    },
-    {
-      id: 4,
-      name: "Robert Davis",
-      email: "robert@example.com",
-      status: "active",
-      joinDate: "Nov 10, 2023",
-      novelsRead: 89,
-      timeSpent: "300 hours",
-      favoriteGenre: "Mystery",
-      lastActive: "30 minutes ago",
-      reports: 0,
-      comments: 420
-    }
-  ]
+  const readers = profiles.filter(profile => profile.role === 'reader')
 
-  const filteredReaders = mockReaders.filter(reader => {
-    const matchesSearch = reader.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         reader.email.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || reader.status === statusFilter
+  const filteredReaders = readers.filter(reader => {
+    const displayName = reader.display_name || reader.username || 'Unknown'
+    const matchesSearch = displayName.toLowerCase().includes(searchTerm.toLowerCase())
+    const status = (reader as any).status || 'active'
+    const matchesStatus = statusFilter === "all" || status === statusFilter
     return matchesSearch && matchesStatus
   })
 
@@ -91,6 +41,18 @@ export function ReadersManagement({ onNavigate }: ReadersManagementProps) {
       case "suspended": return "destructive"
       default: return "outline"
     }
+  }
+
+  if (loading) {
+    return <div className="space-y-8">
+      <div className="text-center">Loading readers...</div>
+    </div>
+  }
+
+  if (error) {
+    return <div className="space-y-8">
+      <div className="text-center text-destructive">Error: {error}</div>
+    </div>
   }
 
   return (
@@ -114,7 +76,7 @@ export function ReadersManagement({ onNavigate }: ReadersManagementProps) {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search readers by name or email..."
+                  placeholder="Search readers by name or username..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -151,38 +113,29 @@ export function ReadersManagement({ onNavigate }: ReadersManagementProps) {
                   <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                     <div className="space-y-2">
                       <div className="flex items-center gap-3">
-                        <h3 className="text-xl font-semibold">{reader.name}</h3>
-                        <Badge variant={getStatusColor(reader.status) as any}>
-                          {reader.status}
+                        <h3 className="text-xl font-semibold">{reader.display_name || reader.username || 'Unknown'}</h3>
+                        <Badge variant={getStatusColor(reader.status || 'active') as any}>
+                          {reader.status || 'active'}
                         </Badge>
-                        {reader.reports > 0 && (
-                          <Badge variant="destructive">
-                            {reader.reports} reports
-                          </Badge>
-                        )}
                       </div>
-                      <p className="text-muted-foreground">{reader.email}</p>
+                      <p className="text-muted-foreground">User ID: {reader.user_id}</p>
                       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                         <div>
-                          <span className="text-muted-foreground">Novels Read:</span>
-                          <span className="ml-2 font-medium">{reader.novelsRead}</span>
+                          <span className="text-muted-foreground">Role:</span>
+                          <span className="ml-2 font-medium">{reader.role}</span>
                         </div>
                         <div>
-                          <span className="text-muted-foreground">Time Spent:</span>
-                          <span className="ml-2 font-medium">{reader.timeSpent}</span>
+                          <span className="text-muted-foreground">Username:</span>
+                          <span className="ml-2 font-medium">{reader.username || 'Not set'}</span>
                         </div>
                         <div>
-                          <span className="text-muted-foreground">Favorite Genre:</span>
-                          <span className="ml-2 font-medium">{reader.favoriteGenre}</span>
+                          <span className="text-muted-foreground">Bio:</span>
+                          <span className="ml-2 font-medium">{reader.bio ? reader.bio.substring(0, 50) + '...' : 'No bio'}</span>
                         </div>
                         <div>
-                          <span className="text-muted-foreground">Comments:</span>
-                          <span className="ml-2 font-medium">{reader.comments}</span>
+                          <span className="text-muted-foreground">Created:</span>
+                          <span className="ml-2 font-medium">{new Date(reader.created_at || '').toLocaleDateString()}</span>
                         </div>
-                      </div>
-                      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                        <span>Joined: {reader.joinDate}</span>
-                        <span>Last Active: {reader.lastActive}</span>
                       </div>
                     </div>
 
@@ -197,28 +150,17 @@ export function ReadersManagement({ onNavigate }: ReadersManagementProps) {
                         View Reader
                       </Button>
                       
-                      {reader.status === "active" && (
+                      {(reader.status || 'active') === "active" && (
                         <Button size="sm" variant="outline">
                           <Ban className="h-4 w-4 mr-1" />
                           Suspend
                         </Button>
                       )}
 
-                      {reader.status === "suspended" && (
+                      {(reader.status || 'active') === "suspended" && (
                         <Button size="sm" variant="outline">
                           <UserCheck className="h-4 w-4 mr-1" />
                           Reactivate
-                        </Button>
-                      )}
-
-                      {reader.reports > 0 && (
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => onNavigate("reports", { reader })}
-                        >
-                          <Flag className="h-4 w-4 mr-1" />
-                          View Reports
                         </Button>
                       )}
                     </div>
@@ -228,6 +170,14 @@ export function ReadersManagement({ onNavigate }: ReadersManagementProps) {
             </CardContent>
           </Card>
         ))}
+        
+        {filteredReaders.length === 0 && (
+          <Card className="vine-card">
+            <CardContent className="pt-6 text-center text-muted-foreground">
+              No readers found matching your criteria.
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Stats Summary */}
@@ -235,7 +185,7 @@ export function ReadersManagement({ onNavigate }: ReadersManagementProps) {
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-primary">
-              {mockReaders.filter(r => r.status === "active").length}
+              {readers.filter(r => (r.status || 'active') === "active").length}
             </div>
             <div className="text-sm text-muted-foreground">Active Readers</div>
           </CardContent>
@@ -243,7 +193,7 @@ export function ReadersManagement({ onNavigate }: ReadersManagementProps) {
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-destructive">
-              {mockReaders.filter(r => r.status === "suspended").length}
+              {readers.filter(r => (r.status || 'active') === "suspended").length}
             </div>
             <div className="text-sm text-muted-foreground">Suspended</div>
           </CardContent>
@@ -251,17 +201,17 @@ export function ReadersManagement({ onNavigate }: ReadersManagementProps) {
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">
-              {mockReaders.reduce((sum, r) => sum + r.novelsRead, 0)}
+              {readers.length}
             </div>
-            <div className="text-sm text-muted-foreground">Total Novels Read</div>
+            <div className="text-sm text-muted-foreground">Total Readers</div>
           </CardContent>
         </Card>
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">
-              {mockReaders.filter(r => r.reports > 0).length}
+              {readers.filter(r => r.bio && r.bio.length > 0).length}
             </div>
-            <div className="text-sm text-muted-foreground">Readers with Reports</div>
+            <div className="text-sm text-muted-foreground">With Bio</div>
           </CardContent>
         </Card>
       </div>

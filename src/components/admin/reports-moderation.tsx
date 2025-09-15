@@ -3,7 +3,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { 
   Flag, 
@@ -16,6 +15,7 @@ import {
   BookOpen,
   User
 } from "lucide-react"
+import { useReports } from '@/hooks/useReports'
 
 interface ReportsModerationProps {
   onNavigate: (page: string, data?: any) => void
@@ -24,78 +24,13 @@ interface ReportsModerationProps {
 export function ReportsModeration({ onNavigate }: ReportsModerationProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [typeFilter, setTypeFilter] = useState("all")
+  const { reports, loading, error, updateReportStatus } = useReports()
 
-  const mockReports = [
-    {
-      id: 1,
-      title: "Inappropriate Content in Chapter 3",
-      type: "novel",
-      contentId: "novel_123",
-      contentTitle: "Digital Awakening - Chapter 3",
-      author: "Sarah Chen",
-      reporter: "User123",
-      reporterEmail: "user123@example.com",
-      reason: "Inappropriate content",
-      description: "This chapter contains explicit content that violates community guidelines.",
-      status: "pending",
-      date: "2 hours ago",
-      severity: "high"
-    },
-    {
-      id: 2,
-      title: "Spam Comment on Novel",
-      type: "comment",
-      contentId: "comment_456",
-      contentTitle: "Comment on 'Love in Code'",
-      author: "John Doe",
-      reporter: "BookLover",
-      reporterEmail: "booklover@example.com",
-      reason: "Spam",
-      description: "User is posting the same promotional comment on multiple novels.",
-      status: "pending",
-      date: "5 hours ago",
-      severity: "medium"
-    },
-    {
-      id: 3,
-      title: "Plagiarism Report",
-      type: "novel",
-      contentId: "novel_789",
-      contentTitle: "Midnight Chronicles",
-      author: "Alice Wang",
-      reporter: "WriterGuard",
-      reporterEmail: "writerguard@example.com",
-      reason: "Plagiarism",
-      description: "This novel appears to be copied from another published work.",
-      status: "reviewed",
-      date: "1 day ago",
-      severity: "high"
-    },
-    {
-      id: 4,
-      title: "Harassment in Comments",
-      type: "comment",
-      contentId: "comment_321",
-      contentTitle: "Comment thread on 'Future Past'",
-      author: "TrollUser",
-      reporter: "SafeReader",
-      reporterEmail: "safereader@example.com",
-      reason: "Harassment",
-      description: "User is making personal attacks against other readers.",
-      status: "resolved",
-      date: "3 days ago",
-      severity: "high"
-    }
-  ]
-
-  const filteredReports = mockReports.filter(report => {
-    const matchesSearch = report.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         report.contentTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         report.author.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredReports = reports.filter(report => {
+    const matchesSearch = report.reason.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (report.description && report.description.toLowerCase().includes(searchTerm.toLowerCase()))
     const matchesStatus = statusFilter === "all" || report.status === statusFilter
-    const matchesType = typeFilter === "all" || report.type === typeFilter
-    return matchesSearch && matchesStatus && matchesType
+    return matchesSearch && matchesStatus
   })
 
   const getStatusColor = (status: string) => {
@@ -107,22 +42,38 @@ export function ReportsModeration({ onNavigate }: ReportsModerationProps) {
     }
   }
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case "high": return "destructive"
-      case "medium": return "secondary"
-      case "low": return "outline"
-      default: return "outline"
+  const getSeverityColor = (reason: string) => {
+    // Determine severity based on reason
+    const highSeverityReasons = ['harassment', 'hate-speech', 'violence', 'illegal-content']
+    const isHighSeverity = highSeverityReasons.some(severe => reason.toLowerCase().includes(severe))
+    return isHighSeverity ? "destructive" : "secondary"
+  }
+
+  const getTypeIcon = (reason: string) => {
+    if (reason.toLowerCase().includes('comment')) return MessageSquare
+    if (reason.toLowerCase().includes('novel') || reason.toLowerCase().includes('story')) return BookOpen
+    if (reason.toLowerCase().includes('user')) return User
+    return Flag
+  }
+
+  const handleStatusUpdate = async (reportId: string, newStatus: 'pending' | 'reviewed' | 'resolved') => {
+    try {
+      await updateReportStatus(reportId, newStatus)
+    } catch (err) {
+      console.error('Failed to update report status:', err)
     }
   }
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case "novel": return BookOpen
-      case "comment": return MessageSquare
-      case "user": return User
-      default: return Flag
-    }
+  if (loading) {
+    return <div className="space-y-8">
+      <div className="text-center">Loading reports...</div>
+    </div>
+  }
+
+  if (error) {
+    return <div className="space-y-8">
+      <div className="text-center text-destructive">Error: {error}</div>
+    </div>
   }
 
   return (
@@ -164,17 +115,6 @@ export function ReportsModeration({ onNavigate }: ReportsModerationProps) {
                 <SelectItem value="resolved">Resolved</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-full lg:w-48">
-                <SelectValue placeholder="Filter by type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="novel">Novels</SelectItem>
-                <SelectItem value="comment">Comments</SelectItem>
-                <SelectItem value="user">Users</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </CardContent>
       </Card>
@@ -182,7 +122,7 @@ export function ReportsModeration({ onNavigate }: ReportsModerationProps) {
       {/* Reports List */}
       <div className="space-y-4">
         {filteredReports.map((report) => {
-          const TypeIcon = getTypeIcon(report.type)
+          const TypeIcon = getTypeIcon(report.reason)
           
           return (
             <Card key={report.id} className="vine-card">
@@ -198,41 +138,41 @@ export function ReportsModeration({ onNavigate }: ReportsModerationProps) {
                     <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                       <div className="space-y-2">
                         <div className="flex items-center gap-3 flex-wrap">
-                          <h3 className="text-lg font-semibold">{report.title}</h3>
+                          <h3 className="text-lg font-semibold">Report: {report.reason}</h3>
                           <Badge variant={getStatusColor(report.status) as any}>
                             {report.status}
                           </Badge>
-                          <Badge variant={getSeverityColor(report.severity) as any}>
-                            {report.severity} priority
-                          </Badge>
-                          <Badge variant="outline">
-                            {report.type}
+                          <Badge variant={getSeverityColor(report.reason) as any}>
+                            {getSeverityColor(report.reason) === "destructive" ? "high priority" : "medium priority"}
                           </Badge>
                         </div>
-                        <p className="text-muted-foreground">{report.contentTitle}</p>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
                           <div>
-                            <span className="text-muted-foreground">Author:</span>
-                            <span className="ml-2 font-medium">{report.author}</span>
+                            <span className="text-muted-foreground">Reporter ID:</span>
+                            <span className="ml-2 font-medium">{report.reporter_id}</span>
                           </div>
                           <div>
-                            <span className="text-muted-foreground">Reporter:</span>
-                            <span className="ml-2 font-medium">{report.reporter}</span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Reason:</span>
-                            <span className="ml-2 font-medium">{report.reason}</span>
+                            <span className="text-muted-foreground">Story ID:</span>
+                            <span className="ml-2 font-medium">{report.story_id || 'N/A'}</span>
                           </div>
                           <div>
                             <span className="text-muted-foreground">Reported:</span>
-                            <span className="ml-2 font-medium">{report.date}</span>
+                            <span className="ml-2 font-medium">{new Date(report.created_at).toLocaleDateString()}</span>
                           </div>
+                          {report.reviewed_at && (
+                            <div>
+                              <span className="text-muted-foreground">Reviewed:</span>
+                              <span className="ml-2 font-medium">{new Date(report.reviewed_at).toLocaleDateString()}</span>
+                            </div>
+                          )}
                         </div>
-                        <div className="mt-3">
-                          <p className="text-sm text-muted-foreground">
-                            <strong>Description:</strong> {report.description}
-                          </p>
-                        </div>
+                        {report.description && (
+                          <div className="mt-3">
+                            <p className="text-sm text-muted-foreground">
+                              <strong>Description:</strong> {report.description}
+                            </p>
+                          </div>
+                        )}
                       </div>
 
                       {/* Actions */}
@@ -244,19 +184,34 @@ export function ReportsModeration({ onNavigate }: ReportsModerationProps) {
                         
                         {report.status === "pending" && (
                           <>
-                            <Button size="sm" variant="outline">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleStatusUpdate(report.id, 'reviewed')}
+                            >
                               <CheckCircle className="h-4 w-4 mr-1" />
-                              Approve
+                              Mark Reviewed
                             </Button>
-                            <Button size="sm" variant="outline">
-                              <X className="h-4 w-4 mr-1" />
-                              Delete Content
-                            </Button>
-                            <Button size="sm" variant="outline">
-                              <AlertTriangle className="h-4 w-4 mr-1" />
-                              Warn Author
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleStatusUpdate(report.id, 'resolved')}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Resolve
                             </Button>
                           </>
+                        )}
+                        
+                        {report.status === "reviewed" && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleStatusUpdate(report.id, 'resolved')}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Resolve
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -267,8 +222,8 @@ export function ReportsModeration({ onNavigate }: ReportsModerationProps) {
                         <h4 className="font-semibold mb-2">Moderation Notes</h4>
                         <p className="text-sm text-muted-foreground">
                           {report.status === "resolved" 
-                            ? "Content removed and user warned. Additional reports may result in account suspension."
-                            : "Under review by moderation team. Awaiting final decision."
+                            ? "Report has been resolved by moderation team."
+                            : "Report is under review by moderation team."
                           }
                         </p>
                       </Card>
@@ -279,6 +234,14 @@ export function ReportsModeration({ onNavigate }: ReportsModerationProps) {
             </Card>
           )
         })}
+        
+        {filteredReports.length === 0 && (
+          <Card className="vine-card">
+            <CardContent className="pt-6 text-center text-muted-foreground">
+              No reports found matching your criteria.
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Stats Summary */}
@@ -286,7 +249,7 @@ export function ReportsModeration({ onNavigate }: ReportsModerationProps) {
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-destructive">
-              {mockReports.filter(r => r.status === "pending").length}
+              {reports.filter(r => r.status === "pending").length}
             </div>
             <div className="text-sm text-muted-foreground">Pending Reports</div>
           </CardContent>
@@ -294,7 +257,7 @@ export function ReportsModeration({ onNavigate }: ReportsModerationProps) {
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-secondary-foreground">
-              {mockReports.filter(r => r.status === "reviewed").length}
+              {reports.filter(r => r.status === "reviewed").length}
             </div>
             <div className="text-sm text-muted-foreground">Under Review</div>
           </CardContent>
@@ -302,17 +265,17 @@ export function ReportsModeration({ onNavigate }: ReportsModerationProps) {
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">
-              {mockReports.filter(r => r.status === "resolved").length}
+              {reports.filter(r => r.status === "resolved").length}
             </div>
             <div className="text-sm text-muted-foreground">Resolved</div>
           </CardContent>
         </Card>
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-destructive">
-              {mockReports.filter(r => r.severity === "high").length}
+            <div className="text-2xl font-bold">
+              {reports.length}
             </div>
-            <div className="text-sm text-muted-foreground">High Priority</div>
+            <div className="text-sm text-muted-foreground">Total Reports</div>
           </CardContent>
         </Card>
       </div>

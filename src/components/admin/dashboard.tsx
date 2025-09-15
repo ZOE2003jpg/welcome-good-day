@@ -11,6 +11,11 @@ import {
   Play,
   FileText
 } from "lucide-react"
+import { useStories } from '@/hooks/useStories'
+import { useChapters } from '@/hooks/useChapters'
+import { useProfiles } from '@/hooks/useProfiles'
+import { useReports } from '@/hooks/useReports'
+import { useAds } from '@/hooks/useAds'
 
 const dailyActiveUsers = [
   { date: "Jan 1", users: 1200 },
@@ -41,15 +46,38 @@ interface DashboardProps {
 }
 
 export function Dashboard({ onNavigate }: DashboardProps) {
+  const { stories, loading: storiesLoading } = useStories()
+  const { chapters, loading: chaptersLoading } = useChapters()
+  const { profiles, loading: profilesLoading } = useProfiles()
+  const { reports, loading: reportsLoading } = useReports()
+  const { ads, loading: adsLoading } = useAds()
+
   const systemStats = {
-    totalNovels: 5234,
-    totalChapters: 47829,
-    totalReaders: 12847,
-    totalWriters: 1583,
-    adImpressions: 452000,
-    adRevenue: 8947.50,
-    flaggedContent: 23,
-    activeComplaints: 7
+    totalNovels: stories.length,
+    totalChapters: chapters.length,
+    totalReaders: profiles.filter(p => p.role === 'reader').length,
+    totalWriters: profiles.filter(p => p.role === 'writer').length,
+    adImpressions: ads.reduce((sum, ad) => sum + ad.impressions, 0),
+    adRevenue: ads.reduce((sum, ad) => sum + (ad.clicks * 0.5), 0), // Assuming $0.5 per click
+    flaggedContent: reports.filter(r => r.status === 'pending').length,
+    activeComplaints: reports.filter(r => r.status === 'reviewed').length
+  }
+
+  const isLoading = storiesLoading || chaptersLoading || profilesLoading || reportsLoading || adsLoading
+
+  // Get top stories by view count for chart
+  const topNovels = stories
+    .sort((a, b) => (b.view_count || 0) - (a.view_count || 0))
+    .slice(0, 5)
+    .map(story => ({ 
+      title: story.title.length > 15 ? story.title.substring(0, 15) + '...' : story.title, 
+      reads: story.view_count || 0 
+    }))
+
+  if (isLoading) {
+    return <div className="space-y-8">
+      <div className="text-center">Loading dashboard...</div>
+    </div>
   }
 
   return (

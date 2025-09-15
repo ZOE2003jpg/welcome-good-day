@@ -15,6 +15,7 @@ import {
   Plus,
   UserCheck
 } from "lucide-react"
+import { useProfiles } from '@/hooks/useProfiles'
 
 interface WritersManagementProps {
   onNavigate: (page: string, data?: any) => void
@@ -23,76 +24,37 @@ interface WritersManagementProps {
 export function WritersManagement({ onNavigate }: WritersManagementProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const { profiles, loading, error } = useProfiles()
 
-  const mockWriters = [
-    {
-      id: 1,
-      name: "Sarah Chen",
-      email: "sarah@example.com",
-      status: "verified",
-      joinDate: "Jan 15, 2024",
-      novels: 5,
-      totalReads: 125000,
-      followers: 850,
-      rating: 4.8,
-      earnings: 2847.50,
-      lastActive: "2 hours ago"
-    },
-    {
-      id: 2,
-      name: "John Doe",
-      email: "john@example.com",
-      status: "pending",
-      joinDate: "Feb 3, 2024",
-      novels: 2,
-      totalReads: 45000,
-      followers: 320,
-      rating: 4.2,
-      earnings: 890.25,
-      lastActive: "1 day ago"
-    },
-    {
-      id: 3,
-      name: "Alice Wang",
-      email: "alice@example.com",
-      status: "suspended",
-      joinDate: "Dec 20, 2023",
-      novels: 8,
-      totalReads: 200000,
-      followers: 1250,
-      rating: 4.6,
-      earnings: 5234.75,
-      lastActive: "5 days ago"
-    },
-    {
-      id: 4,
-      name: "Michael Brown",
-      email: "michael@example.com",
-      status: "verified",
-      joinDate: "Nov 10, 2023",
-      novels: 12,
-      totalReads: 350000,
-      followers: 2100,
-      rating: 4.9,
-      earnings: 8945.50,
-      lastActive: "30 minutes ago"
-    }
-  ]
+  const writers = profiles.filter(profile => profile.role === 'writer')
 
-  const filteredWriters = mockWriters.filter(writer => {
-    const matchesSearch = writer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         writer.email.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || writer.status === statusFilter
+  const filteredWriters = writers.filter(writer => {
+    const displayName = writer.display_name || writer.username || 'Unknown'
+    const matchesSearch = displayName.toLowerCase().includes(searchTerm.toLowerCase())
+    const status = (writer as any).status || 'active'
+    const matchesStatus = statusFilter === "all" || status === statusFilter
     return matchesSearch && matchesStatus
   })
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "verified": return "default"
+      case "active": return "default"
       case "pending": return "secondary"
       case "suspended": return "destructive"
       default: return "outline"
     }
+  }
+
+  if (loading) {
+    return <div className="space-y-8">
+      <div className="text-center">Loading writers...</div>
+    </div>
+  }
+
+  if (error) {
+    return <div className="space-y-8">
+      <div className="text-center text-destructive">Error: {error}</div>
+    </div>
   }
 
   return (
@@ -122,7 +84,7 @@ export function WritersManagement({ onNavigate }: WritersManagementProps) {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search writers by name or email..."
+                  placeholder="Search writers by name or username..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -135,7 +97,7 @@ export function WritersManagement({ onNavigate }: WritersManagementProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="verified">Verified</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="suspended">Suspended</SelectItem>
               </SelectContent>
@@ -160,34 +122,29 @@ export function WritersManagement({ onNavigate }: WritersManagementProps) {
                   <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                     <div className="space-y-2">
                       <div className="flex items-center gap-3">
-                        <h3 className="text-xl font-semibold">{writer.name}</h3>
-                        <Badge variant={getStatusColor(writer.status) as any}>
-                          {writer.status}
+                        <h3 className="text-xl font-semibold">{writer.display_name || writer.username || 'Unknown'}</h3>
+                        <Badge variant={getStatusColor(writer.status || 'active') as any}>
+                          {writer.status || 'active'}
                         </Badge>
                       </div>
-                      <p className="text-muted-foreground">{writer.email}</p>
+                      <p className="text-muted-foreground">User ID: {writer.user_id}</p>
                       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                         <div>
-                          <span className="text-muted-foreground">Novels:</span>
-                          <span className="ml-2 font-medium">{writer.novels}</span>
+                          <span className="text-muted-foreground">Role:</span>
+                          <span className="ml-2 font-medium">{writer.role}</span>
                         </div>
                         <div>
-                          <span className="text-muted-foreground">Total Reads:</span>
-                          <span className="ml-2 font-medium">{writer.totalReads.toLocaleString()}</span>
+                          <span className="text-muted-foreground">Username:</span>
+                          <span className="ml-2 font-medium">{writer.username || 'Not set'}</span>
                         </div>
                         <div>
-                          <span className="text-muted-foreground">Followers:</span>
-                          <span className="ml-2 font-medium">{writer.followers}</span>
+                          <span className="text-muted-foreground">Bio:</span>
+                          <span className="ml-2 font-medium">{writer.bio ? writer.bio.substring(0, 50) + '...' : 'No bio'}</span>
                         </div>
                         <div>
-                          <span className="text-muted-foreground">Rating:</span>
-                          <span className="ml-2 font-medium">{writer.rating}/5</span>
+                          <span className="text-muted-foreground">Created:</span>
+                          <span className="ml-2 font-medium">{new Date(writer.created_at || '').toLocaleDateString()}</span>
                         </div>
-                      </div>
-                      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                        <span>Joined: {writer.joinDate}</span>
-                        <span>Earnings: ${writer.earnings.toLocaleString()}</span>
-                        <span>Last Active: {writer.lastActive}</span>
                       </div>
                     </div>
 
@@ -202,32 +159,6 @@ export function WritersManagement({ onNavigate }: WritersManagementProps) {
                         View Writer
                       </Button>
                       
-                      {writer.status === "pending" && (
-                        <Button size="sm" variant="outline">
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Verify
-                        </Button>
-                      )}
-
-                      {writer.status === "verified" && (
-                        <Button size="sm" variant="outline">
-                          <Ban className="h-4 w-4 mr-1" />
-                          Suspend
-                        </Button>
-                      )}
-
-                      {writer.status === "suspended" && (
-                        <Button size="sm" variant="outline">
-                          <UserCheck className="h-4 w-4 mr-1" />
-                          Reactivate
-                        </Button>
-                      )}
-
-                      <Button size="sm" variant="outline">
-                        <RefreshCw className="h-4 w-4 mr-1" />
-                        Reset Password
-                      </Button>
-
                       <Button size="sm" variant="outline">
                         <MessageSquare className="h-4 w-4 mr-1" />
                         Message
@@ -239,6 +170,14 @@ export function WritersManagement({ onNavigate }: WritersManagementProps) {
             </CardContent>
           </Card>
         ))}
+        
+        {filteredWriters.length === 0 && (
+          <Card className="vine-card">
+            <CardContent className="pt-6 text-center text-muted-foreground">
+              No writers found matching your criteria.
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Stats Summary */}
@@ -246,33 +185,33 @@ export function WritersManagement({ onNavigate }: WritersManagementProps) {
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-primary">
-              {mockWriters.filter(w => w.status === "verified").length}
+              {writers.filter(w => (w.status || 'active') === "active").length}
             </div>
-            <div className="text-sm text-muted-foreground">Verified Writers</div>
+            <div className="text-sm text-muted-foreground">Active Writers</div>
           </CardContent>
         </Card>
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-secondary-foreground">
-              {mockWriters.filter(w => w.status === "pending").length}
+              {writers.filter(w => !w.status || (w.status || 'active') === "pending").length}
             </div>
-            <div className="text-sm text-muted-foreground">Pending Verification</div>
-          </CardContent>
-        </Card>
-        <Card className="vine-card text-center">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-destructive">
-              {mockWriters.filter(w => w.status === "suspended").length}
-            </div>
-            <div className="text-sm text-muted-foreground">Suspended</div>
+            <div className="text-sm text-muted-foreground">New Writers</div>
           </CardContent>
         </Card>
         <Card className="vine-card text-center">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">
-              ${mockWriters.reduce((sum, w) => sum + w.earnings, 0).toLocaleString()}
+              {writers.length}
             </div>
-            <div className="text-sm text-muted-foreground">Total Earnings</div>
+            <div className="text-sm text-muted-foreground">Total Writers</div>
+          </CardContent>
+        </Card>
+        <Card className="vine-card text-center">
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold">
+              {writers.filter(w => w.bio && w.bio.length > 0).length}
+            </div>
+            <div className="text-sm text-muted-foreground">With Bio</div>
           </CardContent>
         </Card>
       </div>
