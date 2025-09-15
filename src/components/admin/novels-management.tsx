@@ -5,16 +5,23 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useStories } from "@/hooks/useStories"
+import { useUser } from "@/components/user-context"
+import { toast } from "sonner"
 import { 
   BookOpen, 
   Eye, 
-  Edit, 
-  Ban, 
-  CheckCircle, 
-  X, 
   Search,
+  Filter,
+  CheckCircle,
+  XCircle,
+  Clock,
+  MoreHorizontal,
+  Ban,
+  ThumbsUp,
   Plus,
-  FileText
+  FileText,
+  X,
+  Edit
 } from "lucide-react"
 
 interface NovelsManagementProps {
@@ -26,7 +33,6 @@ export function NovelsManagement({ onNavigate }: NovelsManagementProps) {
   const { stories, loading, updateStory } = useStories()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const { stories, loading } = useStories()
 
   const filteredStories = stories.filter(story => {
     const matchesSearch = story.title.toLowerCase().includes(searchTerm.toLowerCase()) ||

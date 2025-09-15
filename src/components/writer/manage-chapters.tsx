@@ -62,14 +62,14 @@ export function ManageChapters({ onNavigate, story: passedStory }: ManageChapter
     id: chapter.id,
     title: chapter.title,
     description: chapter.content?.substring(0, 100) + "..." || "No description",
-    wordCount: chapter.word_count || 0,
-    slides: chapter.slide_count || 0,
+    wordCount: (chapter as any).word_count || 0,
+    slides: (chapter as any).slide_count || 0,
     status: chapter.status,
     reads: chapter.view_count || 0,
     likes: 0, // This would come from a likes aggregation
     comments: 0, // This would come from comments aggregation
     lastUpdated: new Date(chapter.updated_at).toLocaleDateString(),
-    readingTime: Math.ceil((chapter.word_count || 0) / 200) // Assuming 200 words per minute
+    readingTime: Math.ceil(((chapter as any).word_count || 0) / 200) // Assuming 200 words per minute
   }))
 
   const getStatusColor = (status: string) => {

@@ -29,7 +29,7 @@ interface LibraryPageProps {
 export function LibraryPage({ onNavigate }: LibraryPageProps) {
   const { user } = useUser()
   const { library, loading, removeFromLibrary } = useLibrary(user?.id)
-  const { reads, getReadingProgress } = useReads(user?.id)
+  const { reads } = useReads(user?.id)
   const [sortBy, setSortBy] = useState<"recent" | "alphabetical">("recent")
   const [searchTerm, setSearchTerm] = useState("")
 
@@ -44,6 +44,14 @@ export function LibraryPage({ onNavigate }: LibraryPageProps) {
       }
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })
+
+  const getReadingProgress = (storyId: string, chapterId?: string) => {
+    if (chapterId) {
+      return reads.find(r => r.novel_id === storyId && r.chapter_id === chapterId)
+    }
+    const storyReads = reads.filter(r => r.novel_id === storyId)
+    return storyReads.length > 0 ? storyReads[0] : null
+  }
 
   const handleRemove = async (storyId: string) => {
     if (!user || !confirm("Remove this story from your library?")) return
@@ -227,13 +235,23 @@ export function LibraryPage({ onNavigate }: LibraryPageProps) {
                   
                   <div className="text-xs text-muted-foreground mb-4">
                     Added {new Date(item.created_at).toLocaleDateString()}
-  const getReadingProgress = (storyId: string, chapterId?: string) => {
-    if (chapterId) {
-      return reads.find(r => r.novel_id === storyId && r.chapter_id === chapterId)
-    }
-    const storyReads = reads.filter(r => r.novel_id === storyId)
-    return storyReads.length > 0 ? storyReads[0] : null
-  }
+                    {(() => {
+                      const progress = getReadingProgress(story.id)
+                      if (progress && !Array.isArray(progress)) {
+                        return (
+                          <div className="mt-1">
+                            <div className="text-xs">Progress: Slide {progress.slide_number}</div>
+                            <div className="w-full bg-secondary rounded-full h-2 mt-1">
+                              <div 
+                                className="bg-primary h-2 rounded-full" 
+                                style={{ width: `${Math.min(100, (progress.slide_number / 10) * 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        )
+                      }
+                      return null
+                    })()}
                   </div>
 
                   <Button 
