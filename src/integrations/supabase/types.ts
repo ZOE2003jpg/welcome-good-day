@@ -823,7 +823,45 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_story_stats: {
+        Args: { story_id: string }
+        Returns: Json
+      }
+      increment_ad_clicks: {
+        Args: { ad_id: string }
+        Returns: undefined
+      }
+      increment_ad_impressions: {
+        Args: { ad_id: string }
+        Returns: undefined
+      }
+      increment_chapter_views: {
+        Args: { chapter_id: string }
+        Returns: undefined
+      }
+      increment_story_views: {
+        Args: { story_id: string }
+        Returns: undefined
+      }
+      search_stories: {
+        Args: {
+          genre_filter?: string
+          search_term: string
+          story_limit?: number
+          story_offset?: number
+        }
+        Returns: {
+          author_name: string
+          created_at: string
+          description: string
+          genre: string
+          like_count: number
+          story_id: string
+          tags: string[]
+          title: string
+          view_count: number
+        }[]
+      }
     }
     Enums: {
       chapter_status: "draft" | "published"
