@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,10 +13,19 @@ import {
   Palette, 
   Users, 
   Shield,
-  Save
+  Save,
+  AlertCircle
 } from "lucide-react"
 import { useSystemSettings } from '@/hooks/useSystemSettings'
 import { toast } from "sonner"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 interface SettingsProps {
   onNavigate: (page: string, data?: any) => void
@@ -31,6 +40,12 @@ export function Settings({ onNavigate }: SettingsProps) {
   const [autoModeration, setAutoModeration] = useState(true)
   const [emailNotifications, setEmailNotifications] = useState(true)
   const [maintenanceMode, setMaintenanceMode] = useState(false)
+  
+  // Dialog states
+  const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = useState(false)
+  const [isResetSettingsDialogOpen, setIsResetSettingsDialogOpen] = useState(false)
+  const [isSaveConfirmDialogOpen, setIsSaveConfirmDialogOpen] = useState(false)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
   useEffect(() => {
     if (!loading && settings.length > 0) {
@@ -40,10 +55,48 @@ export function Settings({ onNavigate }: SettingsProps) {
       setAutoModeration(getSetting('auto_moderation') === 'true')
       setEmailNotifications(getSetting('email_notifications') === 'true')
       setMaintenanceMode(getSetting('maintenance_mode') === 'true')
+      setHasUnsavedChanges(false)
     }
   }, [loading, settings, getSetting])
+  
+  // Track changes to settings
+  useEffect(() => {
+    if (!loading && settings.length > 0) {
+      const currentAdFrequency = getSetting('ad_frequency') || '6'
+      const currentSlideWordLimit = getSetting('slide_word_limit') || '400'
+      const currentDefaultTheme = getSetting('default_theme') || 'grey'
+      const currentAutoModeration = getSetting('auto_moderation') === 'true'
+      const currentEmailNotifications = getSetting('email_notifications') === 'true'
+      const currentMaintenanceMode = getSetting('maintenance_mode') === 'true'
+      
+      const hasChanges = 
+        adFrequency !== currentAdFrequency ||
+        slideWordLimit !== currentSlideWordLimit ||
+        defaultTheme !== currentDefaultTheme ||
+        autoModeration !== currentAutoModeration ||
+        emailNotifications !== currentEmailNotifications ||
+        maintenanceMode !== currentMaintenanceMode
+        
+      setHasUnsavedChanges(hasChanges)
+    }
+  }, [
+    adFrequency, 
+    slideWordLimit, 
+    defaultTheme, 
+    autoModeration, 
+    emailNotifications, 
+    maintenanceMode, 
+    loading, 
+    settings, 
+    getSetting
+  ])
 
   const handleSaveSettings = async () => {
+    if (maintenanceMode && !isMaintenanceDialogOpen) {
+      setIsMaintenanceDialogOpen(true)
+      return
+    }
+    
     try {
       await Promise.all([
         updateSetting('ad_frequency', adFrequency),
@@ -54,8 +107,34 @@ export function Settings({ onNavigate }: SettingsProps) {
         updateSetting('maintenance_mode', maintenanceMode.toString())
       ])
       toast.success('Settings saved successfully!')
+      setHasUnsavedChanges(false)
+      setIsMaintenanceDialogOpen(false)
+      setIsSaveConfirmDialogOpen(false)
     } catch (error) {
       toast.error('Failed to save settings')
+    }
+  }
+  
+  const handleResetSettings = async () => {
+    try {
+      setAdFrequency('6')
+      setSlideWordLimit('400')
+      setDefaultTheme('grey')
+      setAutoModeration(true)
+      setEmailNotifications(true)
+      setMaintenanceMode(false)
+      setIsResetSettingsDialogOpen(false)
+      toast.success('Settings reset to defaults')
+    } catch (error) {
+      toast.error('Failed to reset settings')
+    }
+  }
+  
+  const handleMaintenanceModeToggle = (checked: boolean) => {
+    if (checked) {
+      setIsMaintenanceDialogOpen(true)
+    } else {
+      setMaintenanceMode(false)
     }
   }
 
@@ -404,7 +483,7 @@ export function Settings({ onNavigate }: SettingsProps) {
               </div>
               <Switch 
                 checked={maintenanceMode} 
-                onCheckedChange={setMaintenanceMode}
+                onCheckedChange={handleMaintenanceModeToggle}
               />
             </div>
 
@@ -441,17 +520,97 @@ export function Settings({ onNavigate }: SettingsProps) {
         </CardContent>
       </Card>
 
-      {/* Save Button */}
-      <div className="flex justify-end">
+      {/* Action Buttons */}
+      <div className="flex justify-between">
+        <Button 
+          variant="outline"
+          onClick={() => setIsResetSettingsDialogOpen(true)}
+          disabled={loading}
+        >
+          Reset to Defaults
+        </Button>
         <Button 
           className="vine-button-hero"
-          onClick={handleSaveSettings}
-          disabled={loading}
+          onClick={hasUnsavedChanges ? handleSaveSettings : () => setIsSaveConfirmDialogOpen(true)}
+          disabled={loading || !hasUnsavedChanges}
         >
           <Save className="h-4 w-4 mr-2" />
           {loading ? "Saving..." : "Save All Settings"}
         </Button>
       </div>
+      
+      {/* Maintenance Mode Dialog */}
+      <Dialog open={isMaintenanceDialogOpen} onOpenChange={setIsMaintenanceDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              Enable Maintenance Mode?
+            </DialogTitle>
+            <DialogDescription>
+              This will make the platform inaccessible to all users except administrators.
+              Users will see the maintenance message you've configured.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsMaintenanceDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => {
+                setMaintenanceMode(true)
+                handleSaveSettings()
+              }}
+            >
+              Enable Maintenance Mode
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Reset Settings Dialog */}
+      <Dialog open={isResetSettingsDialogOpen} onOpenChange={setIsResetSettingsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              Reset All Settings?
+            </DialogTitle>
+            <DialogDescription>
+              This will reset all settings to their default values. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsResetSettingsDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleResetSettings}
+            >
+              Reset Settings
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Save Confirmation Dialog */}
+      <Dialog open={isSaveConfirmDialogOpen} onOpenChange={setIsSaveConfirmDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save Settings</DialogTitle>
+            <DialogDescription>
+              No changes detected. All settings are already saved.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setIsSaveConfirmDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

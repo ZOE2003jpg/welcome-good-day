@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -12,9 +12,13 @@ import {
   Search,
   Flag,
   BookOpen,
-  Clock
+  Clock,
+  CheckCircle
 } from "lucide-react"
 import { useProfiles } from '@/hooks/useProfiles'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
+import { toast } from "@/hooks/use-toast"
 
 interface ReadersManagementProps {
   onNavigate: (page: string, data?: any) => void
@@ -23,14 +27,16 @@ interface ReadersManagementProps {
 export function ReadersManagement({ onNavigate }: ReadersManagementProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const { profiles, loading, error } = useProfiles()
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [currentReader, setCurrentReader] = useState<any>(null)
+  const { profiles, loading, error, updateProfile } = useProfiles()
 
   const readers = profiles.filter(profile => profile.role === 'reader')
 
   const filteredReaders = readers.filter(reader => {
     const displayName = reader.display_name || reader.username || 'Unknown'
     const matchesSearch = displayName.toLowerCase().includes(searchTerm.toLowerCase())
-    const status = (reader as any).status || 'active'
+    const status = reader.status || 'active'
     const matchesStatus = statusFilter === "all" || status === statusFilter
     return matchesSearch && matchesStatus
   })
@@ -40,6 +46,50 @@ export function ReadersManagement({ onNavigate }: ReadersManagementProps) {
       case "active": return "default"
       case "suspended": return "destructive"
       default: return "outline"
+    }
+  }
+  
+  const handleUpdateReader = async () => {
+    if (!currentReader) return
+    
+    try {
+      await updateProfile(currentReader.user_id, {
+        display_name: currentReader.display_name,
+        bio: currentReader.bio,
+        status: currentReader.status
+      })
+      
+      setIsEditDialogOpen(false)
+      setCurrentReader(null)
+      
+      toast({
+        title: "Success",
+        description: "Reader profile updated successfully"
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update reader profile",
+        variant: "destructive"
+      })
+    }
+  }
+  
+  const handleToggleStatus = async (reader: any) => {
+    try {
+      const newStatus = reader.status === 'active' ? 'suspended' : 'active'
+      await updateProfile(reader.user_id, { status: newStatus })
+      
+      toast({
+        title: "Success",
+        description: `Reader ${newStatus === 'active' ? 'activated' : 'suspended'} successfully`
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: `Failed to update reader status`,
+        variant: "destructive"
+      })
     }
   }
 
@@ -99,6 +149,14 @@ export function ReadersManagement({ onNavigate }: ReadersManagementProps) {
 
       {/* Readers List */}
       <div className="space-y-4">
+        {filteredReaders.length === 0 && !loading && (
+          <Card className="vine-card">
+            <CardContent className="pt-6 text-center py-12">
+              <p className="text-muted-foreground">No readers found matching your filters.</p>
+            </CardContent>
+          </Card>
+        )}
+        
         {filteredReaders.map((reader) => (
           <Card key={reader.id} className="vine-card">
             <CardContent className="pt-6">
@@ -149,20 +207,50 @@ export function ReadersManagement({ onNavigate }: ReadersManagementProps) {
                         <Eye className="h-4 w-4 mr-1" />
                         View Reader
                       </Button>
-                      
-                      {(reader.status || 'active') === "active" && (
-                        <Button size="sm" variant="outline">
-                          <Ban className="h-4 w-4 mr-1" />
-                          Suspend
-                        </Button>
-                      )}
-
-                      {(reader.status || 'active') === "suspended" && (
-                        <Button size="sm" variant="outline">
-                          <UserCheck className="h-4 w-4 mr-1" />
-                          Reactivate
-                        </Button>
-                      )}
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          setCurrentReader(reader)
+                          setIsEditDialogOpen(true)
+                        }}
+                      >
+                        <UserCheck className="h-4 w-4 mr-1" />
+                        Edit Profile
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleToggleStatus(reader)}
+                      >
+                        {reader.status === 'suspended' ? (
+                          <>
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Activate
+                          </>
+                        ) : (
+                          <>
+                            <Ban className="h-4 w-4 mr-1" />
+                            Suspend
+                          </>
+                        )}
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => onNavigate("reading-history", { readerId: reader.user_id })}
+                      >
+                        <BookOpen className="h-4 w-4 mr-1" />
+                        Reading History
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => onNavigate("reports", { readerId: reader.user_id })}
+                      >
+                        <Flag className="h-4 w-4 mr-1" />
+                        Reports
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -179,6 +267,58 @@ export function ReadersManagement({ onNavigate }: ReadersManagementProps) {
           </Card>
         )}
       </div>
+      
+      {/* Edit Reader Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit Reader Profile</DialogTitle>
+            <DialogDescription>
+              Update reader profile information
+            </DialogDescription>
+          </DialogHeader>
+          {currentReader && (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <label htmlFor="edit-display-name">Display Name</label>
+                <Input
+                  id="edit-display-name"
+                  value={currentReader.display_name || ''}
+                  onChange={(e) => setCurrentReader({...currentReader, display_name: e.target.value})}
+                />
+              </div>
+              <div className="grid gap-2">
+                <label htmlFor="edit-bio">Bio</label>
+                <Textarea
+                  id="edit-bio"
+                  value={currentReader.bio || ''}
+                  onChange={(e) => setCurrentReader({...currentReader, bio: e.target.value})}
+                  rows={3}
+                />
+              </div>
+              <div className="grid gap-2">
+                <label htmlFor="edit-status">Status</label>
+                <Select 
+                  value={currentReader.status || 'active'} 
+                  onValueChange={(value) => setCurrentReader({...currentReader, status: value})}
+                >
+                  <SelectTrigger id="edit-status">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="suspended">Suspended</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpdateReader}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Stats Summary */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

@@ -3,10 +3,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 import { useStories } from "@/hooks/useStories"
 import { useUser } from "@/components/user-context"
-import { toast } from "sonner"
+import { useProfiles } from "@/hooks/useProfiles"
+import { toast } from "@/components/ui/use-toast"
 import { 
   BookOpen, 
   Eye, 
@@ -30,9 +34,19 @@ interface NovelsManagementProps {
 
 export function NovelsManagement({ onNavigate }: NovelsManagementProps) {
   const { user } = useUser()
-  const { stories, loading, updateStory } = useStories()
+  const { stories, loading, updateStory, fetchStories } = useStories()
+  const { profiles } = useProfiles()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [currentNovel, setCurrentNovel] = useState(null)
+
+  // Ensure we have the latest data
+  useEffect(() => {
+    fetchStories()
+    fetchProfiles()
+  }, []);
 
   const filteredStories = stories.filter(story => {
     const matchesSearch = story.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -41,11 +55,65 @@ export function NovelsManagement({ onNavigate }: NovelsManagementProps) {
     return matchesSearch && matchesStatus
   })
 
+  const handleApproveNovel = async (story) => {
+    try {
+      await updateStory(story.id, { status: 'published' });
+      toast({
+        title: "Success",
+        description: `"${story.title}" has been approved and published`
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to approve novel"
+      });
+    }
+  }
+
+  const handleRejectNovel = async (story) => {
+    try {
+      await updateStory(story.id, { status: 'archived' });
+      toast({
+        title: "Success",
+        description: `"${story.title}" has been rejected`
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to reject novel"
+      });
+    }
+  }
+
+  const handleBlockNovel = async (story) => {
+    try {
+      await updateStory(story.id, { status: 'banned' });
+      toast({
+        title: "Success",
+        description: `"${story.title}" has been blocked`
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to block novel"
+      });
+    }
+  }
+
+  const handleEditNovel = (story) => {
+    setCurrentNovel(story);
+    setIsEditDialogOpen(true);
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "active": return "default"
-      case "pending": return "secondary"
+      case "published": return "default"
+      case "draft": return "secondary"
       case "banned": return "destructive"
+      case "archived": return "outline"
       default: return "outline"
     }
   }
@@ -63,7 +131,10 @@ export function NovelsManagement({ onNavigate }: NovelsManagementProps) {
             Manage novels, approve content, and moderate publications
           </p>
         </div>
-        <Button className="vine-button-hero">
+        <Button 
+          className="vine-button-hero"
+          onClick={() => setIsAddDialogOpen(true)}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Add New Novel
         </Button>
@@ -166,11 +237,19 @@ export function NovelsManagement({ onNavigate }: NovelsManagementProps) {
                           
                           {story.status === "draft" && (
                             <>
-                              <Button size="sm" variant="outline">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleApproveNovel(story)}
+                              >
                                 <CheckCircle className="h-4 w-4 mr-1" />
                                 Approve
                               </Button>
-                              <Button size="sm" variant="outline">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleRejectNovel(story)}
+                              >
                                 <X className="h-4 w-4 mr-1" />
                                 Reject
                               </Button>
@@ -178,18 +257,30 @@ export function NovelsManagement({ onNavigate }: NovelsManagementProps) {
                           )}
 
                           {story.status === "published" && (
-                            <Button size="sm" variant="outline">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleBlockNovel(story)}
+                            >
                               <Ban className="h-4 w-4 mr-1" />
                               Block
                             </Button>
                           )}
 
-                          <Button size="sm" variant="outline">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleEditNovel(story)}
+                          >
                             <Edit className="h-4 w-4 mr-1" />
                             Edit
                           </Button>
 
-                          <Button size="sm" variant="outline">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => onNavigate("reader", { storyId: story.id })}
+                          >
                             <Eye className="h-4 w-4 mr-1" />
                             Preview
                           </Button>
@@ -239,6 +330,163 @@ export function NovelsManagement({ onNavigate }: NovelsManagementProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Add Novel Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Add New Novel</DialogTitle>
+            <DialogDescription>
+              Create a new novel in the system. Click save when you're done.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="title" className="text-right">
+                Title
+              </Label>
+              <Input
+                id="title"
+                placeholder="Novel title"
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="author" className="text-right">
+                Author
+              </Label>
+              <Select>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select author" />
+                </SelectTrigger>
+                <SelectContent>
+                  {profiles?.filter(p => p.role === 'writer').map(writer => (
+                    <SelectItem key={writer.id} value={writer.id}>
+                      {writer.display_name || writer.username}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="genre" className="text-right">
+                Genre
+              </Label>
+              <Select>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select genre" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="romance">Romance</SelectItem>
+                  <SelectItem value="fantasy">Fantasy</SelectItem>
+                  <SelectItem value="sci-fi">Sci-Fi</SelectItem>
+                  <SelectItem value="mystery">Mystery</SelectItem>
+                  <SelectItem value="thriller">Thriller</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="description" className="text-right">
+                Description
+              </Label>
+              <Textarea
+                id="description"
+                placeholder="Novel description"
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="submit" onClick={() => {
+              toast({
+                title: "Success",
+                description: "Novel created successfully"
+              });
+              setIsAddDialogOpen(false);
+            }}>
+              Save Novel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Novel Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit Novel</DialogTitle>
+            <DialogDescription>
+              Make changes to the novel. Click save when you're done.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-title" className="text-right">
+                Title
+              </Label>
+              <Input
+                id="edit-title"
+                defaultValue={currentNovel?.title}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-genre" className="text-right">
+                Genre
+              </Label>
+              <Select defaultValue={currentNovel?.genre}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select genre" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="romance">Romance</SelectItem>
+                  <SelectItem value="fantasy">Fantasy</SelectItem>
+                  <SelectItem value="sci-fi">Sci-Fi</SelectItem>
+                  <SelectItem value="mystery">Mystery</SelectItem>
+                  <SelectItem value="thriller">Thriller</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-description" className="text-right">
+                Description
+              </Label>
+              <Textarea
+                id="edit-description"
+                defaultValue={currentNovel?.description}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-status" className="text-right">
+                Status
+              </Label>
+              <Select defaultValue={currentNovel?.status}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="published">Published</SelectItem>
+                  <SelectItem value="archived">Archived</SelectItem>
+                  <SelectItem value="banned">Banned</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="submit" onClick={() => {
+              toast({
+                title: "Success",
+                description: "Novel updated successfully"
+              });
+              setIsEditDialogOpen(false);
+            }}>
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

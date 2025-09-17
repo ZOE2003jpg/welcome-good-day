@@ -31,17 +31,7 @@ export function useStories() {
       setLoading(true)
       const { data, error } = await supabase
         .from('stories')
-        .select(`
-          *,
-          profiles!stories_author_id_fkey (
-            display_name,
-            username
-          ),
-          story_tags (
-            tag
-          )
-        `)
-        .eq('status', 'published')
+        .select('*, profiles(display_name, username), story_tags(tag)')
         .order('created_at', { ascending: false })
 
       if (error) throw error

@@ -13,11 +13,14 @@ import {
   Search,
   Calendar,
   User,
-  BookOpen
+  BookOpen,
+  AlertTriangle,
+  ShieldAlert
 } from "lucide-react"
 import { useComments } from "@/hooks/useComments"
 import { supabase } from "@/integrations/supabase/client"
-import { toast } from "sonner"
+import { toast } from "@/hooks/use-toast"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 interface CommentsManagementProps {
   onNavigate: (page: string, data?: any) => void
@@ -27,8 +30,11 @@ export function CommentsManagement({ onNavigate }: CommentsManagementProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [dateFilter, setDateFilter] = useState("all")
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [currentCommentId, setCurrentCommentId] = useState<string | null>(null)
+  const [isFlagDialogOpen, setIsFlagDialogOpen] = useState(false)
   
-  const { comments, loading, deleteComment, updateComment } = useComments()
+  const { comments, loading, error, deleteComment, updateComment } = useComments()
 
   // Realtime subscription
   useEffect(() => {
@@ -42,8 +48,9 @@ export function CommentsManagement({ onNavigate }: CommentsManagementProps) {
           table: 'comments'
         },
         () => {
-          // Refresh comments when changes occur
-          window.location.reload()
+          // Instead of reloading, we can fetch comments again
+          const { fetchComments } = useComments()
+          fetchComments()
         }
       )
       .subscribe()
@@ -55,15 +62,69 @@ export function CommentsManagement({ onNavigate }: CommentsManagementProps) {
 
   const filteredComments = comments.filter(comment => {
     const matchesSearch = comment.content.toLowerCase().includes(searchTerm.toLowerCase())
-    return matchesSearch
+    const matchesStatus = statusFilter === 'all' || comment.status === statusFilter
+    
+    let matchesDate = true
+    if (dateFilter !== 'all') {
+      const commentDate = new Date(comment.created_at)
+      const now = new Date()
+      
+      if (dateFilter === 'today') {
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        matchesDate = commentDate >= today
+      } else if (dateFilter === 'week') {
+        const weekStart = new Date(now)
+        weekStart.setDate(now.getDate() - 7)
+        matchesDate = commentDate >= weekStart
+      } else if (dateFilter === 'month') {
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+        matchesDate = commentDate >= monthStart
+      }
+    }
+    
+    return matchesSearch && matchesStatus && matchesDate
   })
 
-  const handleDeleteComment = async (commentId: string) => {
+  const handleDeleteComment = async () => {
+    if (!currentCommentId) return
+    
     try {
-      await deleteComment(commentId)
-      toast.success('Comment deleted successfully')
+      await deleteComment(currentCommentId)
+      setIsDeleteDialogOpen(false)
+      setCurrentCommentId(null)
+      
+      toast({
+        title: "Success",
+        description: "Comment deleted successfully"
+      })
     } catch (error) {
-      toast.error('Failed to delete comment')
+      toast({
+        title: "Error",
+        description: "Failed to delete comment",
+        variant: "destructive"
+      })
+    }
+  }
+  
+  const handleUpdateCommentStatus = async (commentId: string, status: string) => {
+    try {
+      await updateComment(commentId, { status })
+      
+      toast({
+        title: "Success",
+        description: `Comment ${status === 'approved' ? 'approved' : status === 'flagged' ? 'flagged' : 'hidden'} successfully`
+      })
+      
+      if (status === 'flagged') {
+        setIsFlagDialogOpen(false)
+        setCurrentCommentId(null)
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update comment status",
+        variant: "destructive"
+      })
     }
   }
 
@@ -78,6 +139,12 @@ export function CommentsManagement({ onNavigate }: CommentsManagementProps) {
 
   const truncateContent = (content: string, maxLength: number = 150) => {
     return content.length > maxLength ? content.substring(0, maxLength) + "..." : content
+  }
+
+  if (error) {
+    return <div className="space-y-8">
+      <div className="text-center text-destructive">Error: {error}</div>
+    </div>
   }
 
   return (
@@ -156,6 +223,11 @@ export function CommentsManagement({ onNavigate }: CommentsManagementProps) {
                       <div className="space-y-2">
                         <div className="flex items-center gap-3 flex-wrap">
                           <h3 className="font-semibold">User {comment.user_id.slice(0, 8)}</h3>
+                          {comment.status && (
+                            <Badge variant={getStatusColor(comment.status) as any}>
+                              {comment.status}
+                            </Badge>
+                          )}
                         </div>
                         
                         <div className="space-y-1 text-sm text-muted-foreground">
@@ -174,8 +246,38 @@ export function CommentsManagement({ onNavigate }: CommentsManagementProps) {
                       <div className="flex flex-wrap gap-2">
                         <Button 
                           size="sm" 
+                          variant="outline"
+                          onClick={() => handleUpdateCommentStatus(comment.id, 'approved')}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Approve
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => {
+                            setCurrentCommentId(comment.id)
+                            setIsFlagDialogOpen(true)
+                          }}
+                        >
+                          <AlertTriangle className="h-4 w-4 mr-1" />
+                          Flag
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleUpdateCommentStatus(comment.id, 'hidden')}
+                        >
+                          <Ban className="h-4 w-4 mr-1" />
+                          Hide
+                        </Button>
+                        <Button 
+                          size="sm" 
                           variant="outline" 
-                          onClick={() => handleDeleteComment(comment.id)}
+                          onClick={() => {
+                            setCurrentCommentId(comment.id)
+                            setIsDeleteDialogOpen(true)
+                          }}
                         >
                           <Trash2 className="h-4 w-4 mr-1" />
                           Delete
@@ -225,6 +327,44 @@ export function CommentsManagement({ onNavigate }: CommentsManagementProps) {
           </CardContent>
         </Card>
       </div>
+      
+      {/* Delete Comment Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Delete Comment</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this comment? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDeleteComment}>Delete Comment</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Flag Comment Dialog */}
+      <Dialog open={isFlagDialogOpen} onOpenChange={setIsFlagDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Flag Comment</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to flag this comment for review? This will mark it as potentially inappropriate.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsFlagDialogOpen(false)}>Cancel</Button>
+            <Button 
+              variant="default" 
+              onClick={() => currentCommentId && handleUpdateCommentStatus(currentCommentId, 'flagged')}
+            >
+              <ShieldAlert className="h-4 w-4 mr-2" />
+              Flag Comment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

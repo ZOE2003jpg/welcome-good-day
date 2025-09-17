@@ -1,463 +1,442 @@
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
 import { 
+  UserCheck, 
   Shield, 
   Plus, 
-  Edit, 
   Trash2, 
-  Key, 
-  User,
-  Clock,
+  Settings,
   Search,
-  UserCheck,
-  Settings
+  Lock,
+  Key
 } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
+import { toast } from "@/hooks/use-toast"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 
 interface AdminConfigProps {
   onNavigate: (page: string, data?: any) => void
 }
 
 export function AdminConfig({ onNavigate }: AdminConfigProps) {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [newAdminEmail, setNewAdminEmail] = useState("")
-  const [newAdminRole, setNewAdminRole] = useState("moderator")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [showAddDialog, setShowAddDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [selectedAdmin, setSelectedAdmin] = useState<any>(null)
+  const [newAdmin, setNewAdmin] = useState({
+    email: "",
+    name: "",
+    role: "content_moderator"
+  })
 
-  const mockAdmins = [
+  // Sample admin data
+  const [admins, setAdmins] = useState([
     {
-      id: 1,
-      name: "John Smith",
-      email: "john@vinenovel.com",
-      role: "super-admin",
-      status: "active",
-      lastLogin: "2 hours ago",
-      createdDate: "Jan 1, 2024",
-      twoFactorEnabled: true,
-      loginAttempts: 0
+      id: "1",
+      name: "John Doe",
+      email: "john@example.com",
+      role: "super_admin",
+      lastLogin: "2023-09-15T10:30:00Z"
     },
     {
-      id: 2,
-      name: "Sarah Johnson",
-      email: "sarah@vinenovel.com", 
-      role: "content-moderator",
-      status: "active",
-      lastLogin: "1 day ago",
-      createdDate: "Jan 15, 2024",
-      twoFactorEnabled: true,
-      loginAttempts: 0
+      id: "2",
+      name: "Jane Smith",
+      email: "jane@example.com",
+      role: "content_moderator",
+      lastLogin: "2023-09-14T14:45:00Z"
     },
     {
-      id: 3,
-      name: "Mike Davis",
-      email: "mike@vinenovel.com",
-      role: "ad-manager",
-      status: "inactive",
-      lastLogin: "1 week ago",
-      createdDate: "Feb 1, 2024",
-      twoFactorEnabled: false,
-      loginAttempts: 2
-    },
-    {
-      id: 4,
-      name: "Lisa Brown",
-      email: "lisa@vinenovel.com",
-      role: "moderator",
-      status: "active",
-      lastLogin: "30 minutes ago",
-      createdDate: "Feb 10, 2024",
-      twoFactorEnabled: true,
-      loginAttempts: 0
+      id: "3",
+      name: "Mike Johnson",
+      email: "mike@example.com",
+      role: "ad_manager",
+      lastLogin: "2023-09-13T09:15:00Z"
     }
-  ]
+  ])
 
-  const adminRoles = [
-    {
-      name: "super-admin",
-      description: "Full access to all platform features and settings",
-      permissions: ["all"],
-      color: "destructive"
-    },
-    {
-      name: "content-moderator", 
-      description: "Manage content, users, and reports",
-      permissions: ["content", "users", "reports"],
-      color: "default"
-    },
-    {
-      name: "ad-manager",
-      description: "Manage advertisements and revenue",
-      permissions: ["ads", "analytics"],
-      color: "secondary"
-    },
-    {
-      name: "moderator",
-      description: "Basic moderation and user management",
-      permissions: ["reports", "comments"],
-      color: "outline"
-    }
-  ]
+  // Security settings
+  const [securitySettings, setSecuritySettings] = useState({
+    twoFactorAuth: true,
+    passwordExpiry: 90,
+    sessionTimeout: 30,
+    ipRestriction: false,
+    auditLogging: true
+  })
 
-  const filteredAdmins = mockAdmins.filter(admin =>
-    admin.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    admin.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    admin.role.toLowerCase().includes(searchTerm.toLowerCase())
+  // Filter admins based on search query
+  const filteredAdmins = admins.filter(admin => 
+    admin.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    admin.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    admin.role.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const getRoleColor = (role: string) => {
-    const roleConfig = adminRoles.find(r => r.name === role)
-    return roleConfig?.color || "outline"
+  const handleAddAdmin = () => {
+    const newAdminWithId = {
+      ...newAdmin,
+      id: Math.random().toString(36).substring(2, 9),
+      lastLogin: new Date().toISOString()
+    }
+    setAdmins([...admins, newAdminWithId])
+    setShowAddDialog(false)
+    setNewAdmin({
+      email: "",
+      name: "",
+      role: "content_moderator"
+    })
+    toast({
+      title: "Admin added",
+      description: "The admin has been added successfully."
+    })
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active": return "default"
-      case "inactive": return "secondary"
-      case "suspended": return "destructive"
-      default: return "outline"
-    }
+  const handleEditAdmin = () => {
+    if (!selectedAdmin) return
+    setAdmins(admins.map(admin => 
+      admin.id === selectedAdmin.id ? selectedAdmin : admin
+    ))
+    setShowEditDialog(false)
+    toast({
+      title: "Admin updated",
+      description: "The admin has been updated successfully."
+    })
+  }
+
+  const handleDeleteAdmin = () => {
+    if (!selectedAdmin) return
+    setAdmins(admins.filter(admin => admin.id !== selectedAdmin.id))
+    setShowDeleteDialog(false)
+    toast({
+      title: "Admin deleted",
+      description: "The admin has been deleted successfully."
+    })
+  }
+
+  const handleSecuritySettingChange = (setting: string, value: any) => {
+    setSecuritySettings({
+      ...securitySettings,
+      [setting]: value
+    })
+    toast({
+      title: "Settings updated",
+      description: `${setting} has been updated successfully.`
+    })
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold flex items-center gap-3">
-          <Shield className="h-8 w-8 text-primary" />
-          Admin Configuration
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          Manage admin accounts, roles, and security settings
-        </p>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-3xl font-bold">Admin Configuration</h2>
+        <Button onClick={() => setShowAddDialog(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Admin
+        </Button>
       </div>
 
-      {/* Add New Admin */}
-      <Card className="vine-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5" />
-            Add New Admin
-          </CardTitle>
-          <CardDescription>
-            Create a new admin account with specific role permissions
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="admin-email">Email Address</Label>
+      <Tabs defaultValue="admins" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="admins">Admin Accounts</TabsTrigger>
+          <TabsTrigger value="security">Security Settings</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="admins" className="space-y-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="relative mb-4">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search admins..."
+                  className="pl-8"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-4">
+                {filteredAdmins.length === 0 ? (
+                  <div className="text-center py-10 text-muted-foreground">
+                    No admins found
+                  </div>
+                ) : (
+                  filteredAdmins.map((admin) => (
+                    <Card key={admin.id}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="font-medium">{admin.name}</h3>
+                            <p className="text-sm text-muted-foreground">{admin.email}</p>
+                            <div className="flex items-center mt-2">
+                              <Badge variant={
+                                admin.role === "super_admin" ? "default" :
+                                admin.role === "content_moderator" ? "outline" : "secondary"
+                              }>
+                                {admin.role.replace("_", " ")}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground ml-3">
+                                Last login: {new Date(admin.lastLogin).toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Button variant="outline" size="sm" onClick={() => {
+                              setSelectedAdmin(admin)
+                              setShowEditDialog(true)
+                            }}>
+                              Edit
+                            </Button>
+                            {admin.role !== "super_admin" && (
+                              <Button variant="destructive" size="sm" onClick={() => {
+                                setSelectedAdmin(admin)
+                                setShowDeleteDialog(true)
+                              }}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="security" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Security Settings</CardTitle>
+              <CardDescription>
+                Configure security settings for the admin panel
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="two-factor">Two-Factor Authentication</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Require all admins to use 2FA
+                  </p>
+                </div>
+                <Switch
+                  id="two-factor"
+                  checked={securitySettings.twoFactorAuth}
+                  onCheckedChange={(checked) => 
+                    handleSecuritySettingChange("twoFactorAuth", checked)
+                  }
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="password-expiry">Password Expiry (days)</Label>
+                <div className="flex items-center space-x-2">
+                  <Input
+                    id="password-expiry"
+                    type="number"
+                    value={securitySettings.passwordExpiry}
+                    onChange={(e) => 
+                      handleSecuritySettingChange("passwordExpiry", parseInt(e.target.value))
+                    }
+                    className="w-24"
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    Days until password reset is required
+                  </span>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="session-timeout">Session Timeout (minutes)</Label>
+                <div className="flex items-center space-x-2">
+                  <Input
+                    id="session-timeout"
+                    type="number"
+                    value={securitySettings.sessionTimeout}
+                    onChange={(e) => 
+                      handleSecuritySettingChange("sessionTimeout", parseInt(e.target.value))
+                    }
+                    className="w-24"
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    Minutes of inactivity before automatic logout
+                  </span>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="ip-restriction">IP Restriction</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Limit admin access to specific IP addresses
+                  </p>
+                </div>
+                <Switch
+                  id="ip-restriction"
+                  checked={securitySettings.ipRestriction}
+                  onCheckedChange={(checked) => 
+                    handleSecuritySettingChange("ipRestriction", checked)
+                  }
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="audit-logging">Audit Logging</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Log all admin actions for security review
+                  </p>
+                </div>
+                <Switch
+                  id="audit-logging"
+                  checked={securitySettings.auditLogging}
+                  onCheckedChange={(checked) => 
+                    handleSecuritySettingChange("auditLogging", checked)
+                  }
+                />
+              </div>
+              
+              <Button className="w-full mt-4">
+                <Shield className="h-4 w-4 mr-2" />
+                Save Security Settings
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Add Admin Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Admin</DialogTitle>
+            <DialogDescription>
+              Create a new administrator account
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
               <Input
-                id="admin-email"
-                type="email"
-                placeholder="admin@vinenovel.com"
-                value={newAdminEmail}
-                onChange={(e) => setNewAdminEmail(e.target.value)}
+                id="name"
+                placeholder="Full Name"
+                value={newAdmin.name}
+                onChange={(e) => setNewAdmin({...newAdmin, name: e.target.value})}
               />
             </div>
-            
-            <div>
-              <Label htmlFor="admin-role">Role</Label>
-              <Select value={newAdminRole} onValueChange={setNewAdminRole}>
-                <SelectTrigger>
-                  <SelectValue />
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="email@example.com"
+                value={newAdmin.email}
+                onChange={(e) => setNewAdmin({...newAdmin, email: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="role">Role</Label>
+              <Select 
+                value={newAdmin.role} 
+                onValueChange={(value) => setNewAdmin({...newAdmin, role: value})}
+              >
+                <SelectTrigger id="role">
+                  <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
-                  {adminRoles.map((role) => (
-                    <SelectItem key={role.name} value={role.name}>
-                      {role.name.replace("-", " ").replace(/\b\w/g, l => l.toUpperCase())}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="super_admin">Super Admin</SelectItem>
+                  <SelectItem value="content_moderator">Content Moderator</SelectItem>
+                  <SelectItem value="ad_manager">Ad Manager</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="flex items-end">
-              <Button className="vine-button-hero w-full">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Admin
-              </Button>
-            </div>
           </div>
-        </CardContent>
-      </Card>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
+            <Button onClick={handleAddAdmin}>Add Admin</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {/* Admin Roles */}
-      <Card className="vine-card">
-        <CardHeader>
-          <CardTitle>Admin Roles & Permissions</CardTitle>
-          <CardDescription>
-            Define what each admin role can access and manage
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {adminRoles.map((role) => (
-              <Card key={role.name} className="vine-card">
-                <CardContent className="pt-6">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold capitalize">
-                        {role.name.replace("-", " ")}
-                      </h3>
-                      <Badge variant={role.color as any}>
-                        {role.name}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {role.description}
-                    </p>
-                    <div className="flex flex-wrap gap-1">
-                      {role.permissions.map((permission) => (
-                        <Badge key={permission} variant="outline" className="text-xs">
-                          {permission}
-                        </Badge>
-                      ))}
-                    </div>
-                    <Button size="sm" variant="outline" className="w-full">
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit Role
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Search Admins */}
-      <Card className="vine-card">
-        <CardContent className="pt-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search admins by name, email, or role..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Admin Accounts */}
-      <Card className="vine-card">
-        <CardHeader>
-          <CardTitle>Admin Accounts</CardTitle>
-          <CardDescription>
-            Manage existing admin accounts and their access
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {filteredAdmins.map((admin) => (
-              <Card key={admin.id} className="vine-card">
-                <CardContent className="pt-6">
-                  <div className="flex flex-col lg:flex-row gap-6">
-                    {/* Admin Avatar */}
-                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-                      <User className="h-8 w-8 text-primary" />
-                    </div>
-
-                    {/* Admin Info */}
-                    <div className="flex-1 space-y-4">
-                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-3 flex-wrap">
-                            <h3 className="text-lg font-semibold">{admin.name}</h3>
-                            <Badge variant={getRoleColor(admin.role) as any}>
-                              {admin.role.replace("-", " ")}
-                            </Badge>
-                            <Badge variant={getStatusColor(admin.status) as any}>
-                              {admin.status}
-                            </Badge>
-                            {admin.twoFactorEnabled && (
-                              <Badge variant="outline">
-                                <Key className="h-3 w-3 mr-1" />
-                                2FA
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-muted-foreground">{admin.email}</p>
-                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-sm">
-                            <div>
-                              <span className="text-muted-foreground">Last Login:</span>
-                              <span className="ml-2 font-medium">{admin.lastLogin}</span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Created:</span>
-                              <span className="ml-2 font-medium">{admin.createdDate}</span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Failed Logins:</span>
-                              <span className="ml-2 font-medium">{admin.loginAttempts}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex flex-wrap gap-2">
-                          <Button size="sm" variant="outline">
-                            <Edit className="h-4 w-4 mr-1" />
-                            Edit
-                          </Button>
-                          
-                          <Button size="sm" variant="outline">
-                            <Settings className="h-4 w-4 mr-1" />
-                            Permissions
-                          </Button>
-
-                          <Button size="sm" variant="outline">
-                            <Key className="h-4 w-4 mr-1" />
-                            Reset Password
-                          </Button>
-
-                          {admin.status === "active" ? (
-                            <Button size="sm" variant="outline">
-                              <Clock className="h-4 w-4 mr-1" />
-                              Suspend
-                            </Button>
-                          ) : (
-                            <Button size="sm" variant="outline">
-                              <UserCheck className="h-4 w-4 mr-1" />
-                              Activate
-                            </Button>
-                          )}
-
-                          <Button size="sm" variant="outline">
-                            <Trash2 className="h-4 w-4 mr-1" />
-                            Delete
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Security Settings */}
-      <Card className="vine-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            Security Settings
-          </CardTitle>
-          <CardDescription>
-            Configure security policies for admin accounts
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Force Two-Factor Authentication</Label>
-                <p className="text-sm text-muted-foreground">
-                  Require all admins to enable 2FA
-                </p>
+      {/* Edit Admin Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Admin</DialogTitle>
+            <DialogDescription>
+              Modify administrator details
+            </DialogDescription>
+          </DialogHeader>
+          {selectedAdmin && (
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit_name">Name</Label>
+                <Input
+                  id="edit_name"
+                  placeholder="Full Name"
+                  value={selectedAdmin.name}
+                  onChange={(e) => setSelectedAdmin({...selectedAdmin, name: e.target.value})}
+                />
               </div>
-              <Switch defaultChecked={true} />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Password Complexity Requirements</Label>
-                <p className="text-sm text-muted-foreground">
-                  Enforce strong password policies
-                </p>
+              <div className="space-y-2">
+                <Label htmlFor="edit_email">Email</Label>
+                <Input
+                  id="edit_email"
+                  type="email"
+                  placeholder="email@example.com"
+                  value={selectedAdmin.email}
+                  onChange={(e) => setSelectedAdmin({...selectedAdmin, email: e.target.value})}
+                />
               </div>
-              <Switch defaultChecked={true} />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Auto-lock Inactive Sessions</Label>
-                <p className="text-sm text-muted-foreground">
-                  Lock admin sessions after inactivity
-                </p>
+              <div className="space-y-2">
+                <Label htmlFor="edit_role">Role</Label>
+                <Select 
+                  value={selectedAdmin.role} 
+                  onValueChange={(value) => setSelectedAdmin({...selectedAdmin, role: value})}
+                  disabled={selectedAdmin.role === "super_admin"}
+                >
+                  <SelectTrigger id="edit_role">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="super_admin">Super Admin</SelectItem>
+                    <SelectItem value="content_moderator">Content Moderator</SelectItem>
+                    <SelectItem value="ad_manager">Ad Manager</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <Switch defaultChecked={true} />
             </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
+            <Button onClick={handleEditAdmin}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Log All Admin Actions</Label>
-                <p className="text-sm text-muted-foreground">
-                  Track all administrative activities
-                </p>
-              </div>
-              <Switch defaultChecked={true} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <Label htmlFor="session-timeout">Session Timeout (minutes)</Label>
-              <Input
-                id="session-timeout"
-                type="number"
-                defaultValue="30"
-                min="5"
-                max="120"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="max-failed-logins">Max Failed Login Attempts</Label>
-              <Input
-                id="max-failed-logins"
-                type="number"
-                defaultValue="3"
-                min="3"
-                max="10"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Stats Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="vine-card text-center">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-primary">
-              {mockAdmins.filter(a => a.status === "active").length}
-            </div>
-            <div className="text-sm text-muted-foreground">Active Admins</div>
-          </CardContent>
-        </Card>
-        <Card className="vine-card text-center">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">
-              {mockAdmins.filter(a => a.twoFactorEnabled).length}
-            </div>
-            <div className="text-sm text-muted-foreground">2FA Enabled</div>
-          </CardContent>
-        </Card>
-        <Card className="vine-card text-center">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">
-              {mockAdmins.filter(a => a.role === "super-admin").length}
-            </div>
-            <div className="text-sm text-muted-foreground">Super Admins</div>
-          </CardContent>
-        </Card>
-        <Card className="vine-card text-center">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-destructive">
-              {mockAdmins.reduce((sum, a) => sum + a.loginAttempts, 0)}
-            </div>
-            <div className="text-sm text-muted-foreground">Failed Logins</div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Delete Admin Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Admin</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this admin? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDeleteAdmin}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
