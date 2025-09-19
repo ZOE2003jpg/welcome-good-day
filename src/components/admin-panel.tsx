@@ -12,9 +12,11 @@ import { Settings } from "@/components/admin/settings"
 import { AdminConfig } from "@/components/admin/admin-config"
 import { UserPromotion } from "@/components/admin/user-promotion"
 import { UserCreation } from "@/components/admin/user-creation"
+import { ClearStories } from "@/components/admin/clear-stories"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { useUser } from "@/components/user-context"
 import { 
   Shield, 
   BarChart3, 
@@ -28,7 +30,9 @@ import {
   UserCheck,
   FileText,
   Home,
-  PenTool
+  PenTool,
+  LogOut,
+  Trash2
 } from "lucide-react"
 
 interface AdminPanelProps {
@@ -38,6 +42,7 @@ interface AdminPanelProps {
 export function AdminPanel({ onPanelChange }: AdminPanelProps) {
   const [currentPage, setCurrentPage] = useState("dashboard")
   const [selectedData, setSelectedData] = useState(null)
+  const { user, signOut } = useUser()
 
   const handleNavigate = (page: string, data?: any) => {
     if (data) {
@@ -59,7 +64,8 @@ export function AdminPanel({ onPanelChange }: AdminPanelProps) {
     { id: "settings", label: "Settings", icon: SettingsIcon },
     { id: "admin-config", label: "Admin Config", icon: UserCheck },
     { id: "user-promotion", label: "User Promotion", icon: Shield },
-    { id: "user-creation", label: "Create Users", icon: UserCheck }
+    { id: "user-creation", label: "Create Users", icon: UserCheck },
+    { id: "clear-stories", label: "Clear All Stories", icon: Trash2 }
   ]
 
   const panelItems = [
@@ -96,6 +102,8 @@ export function AdminPanel({ onPanelChange }: AdminPanelProps) {
         return <UserPromotion onNavigate={handleNavigate} />
       case "user-creation":
         return <UserCreation onNavigate={handleNavigate} />
+      case "clear-stories":
+        return <ClearStories onNavigate={handleNavigate} />
       default:
         return <Dashboard onNavigate={handleNavigate} />
     }
@@ -129,24 +137,35 @@ export function AdminPanel({ onPanelChange }: AdminPanelProps) {
 
         {onPanelChange && (
           <>
-            <Separator className="my-6" />
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-muted-foreground px-3">Switch Panel</p>
-              {panelItems.map((item) => {
-                const Icon = item.icon
-                return (
-                  <Button
-                    key={item.id}
-                    variant="ghost"
-                    className="w-full justify-start"
-                    onClick={() => onPanelChange(item.id as any)}
-                  >
-                    <Icon className="h-4 w-4 mr-3" />
-                    {item.label}
-                  </Button>
-                )
-              })}
-            </div>
+        <Separator className="my-6" />
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-muted-foreground px-3">Switch Panel</p>
+          {panelItems.map((item) => {
+            const Icon = item.icon
+            return (
+              <Button
+                key={item.id}
+                variant="ghost"
+                className="w-full justify-start"
+                onClick={() => onPanelChange(item.id as any)}
+              >
+                <Icon className="h-4 w-4 mr-3" />
+                {item.label}
+              </Button>
+            )
+          })}
+          <Separator className="my-3" />
+          {user && (
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-destructive"
+              onClick={signOut}
+            >
+              <LogOut className="h-4 w-4 mr-3" />
+              Sign Out
+            </Button>
+          )}
+        </div>
           </>
         )}
       </div>

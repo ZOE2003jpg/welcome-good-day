@@ -15,7 +15,8 @@ import {
   Settings as SettingsIcon,
   Home,
   PenTool,
-  Shield
+  Shield,
+  LogOut
 } from "lucide-react"
 
 interface ReaderPanelProps {
@@ -25,7 +26,7 @@ interface ReaderPanelProps {
 export function ReaderPanel({ onPanelChange }: ReaderPanelProps) {
   const [currentPage, setCurrentPage] = useState("discover")
   const [currentStory, setCurrentStory] = useState(null)
-  const { user } = useUser()
+  const { user, signOut } = useUser()
 
   const handleNavigate = (page: string, data?: any) => {
     if (data) {
@@ -97,24 +98,35 @@ export function ReaderPanel({ onPanelChange }: ReaderPanelProps) {
 
         {onPanelChange && panelItems.length > 0 && (
           <>
-            <Separator className="my-6" />
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-muted-foreground px-3">Switch Panel</p>
-              {panelItems.map((item) => {
-                const Icon = item.icon
-                return (
-                  <Button
-                    key={item.id}
-                    variant="ghost"
-                    className="w-full justify-start"
-                    onClick={() => onPanelChange(item.id as any)}
-                  >
-                    <Icon className="h-4 w-4 mr-3" />
-                    {item.label}
-                  </Button>
-                )
-              })}
-            </div>
+        <Separator className="my-6" />
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-muted-foreground px-3">Switch Panel</p>
+          {panelItems.map((item) => {
+            const Icon = item.icon
+            return (
+              <Button
+                key={item.id}
+                variant="ghost"
+                className="w-full justify-start"
+                onClick={() => onPanelChange(item.id as any)}
+              >
+                <Icon className="h-4 w-4 mr-3" />
+                {item.label}
+              </Button>
+            )
+          })}
+          <Separator className="my-3" />
+          {user && (
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-destructive"
+              onClick={signOut}
+            >
+              <LogOut className="h-4 w-4 mr-3" />
+              Sign Out
+            </Button>
+          )}
+        </div>
           </>
         )}
       </div>

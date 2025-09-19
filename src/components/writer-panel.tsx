@@ -23,7 +23,8 @@ import {
   User,
   Settings as SettingsIcon,
   Home,
-  Shield
+  Shield,
+  LogOut
 } from "lucide-react"
 
 interface WriterPanelProps {
@@ -33,7 +34,7 @@ interface WriterPanelProps {
 export function WriterPanel({ onPanelChange }: WriterPanelProps) {
   const [currentPage, setCurrentPage] = useState("dashboard")
   const [selectedData, setSelectedData] = useState(null)
-  const { user } = useUser()
+  const { user, signOut } = useUser()
 
   const handleNavigate = (page: string, data?: any) => {
     if (data) {
@@ -121,6 +122,17 @@ export function WriterPanel({ onPanelChange }: WriterPanelProps) {
                   </Button>
                 )
               })}
+              <Separator className="my-3" />
+              {user && (
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-destructive"
+                  onClick={signOut}
+                >
+                  <LogOut className="h-4 w-4 mr-3" />
+                  Sign Out
+                </Button>
+              )}
             </div>
           </>
         )}
