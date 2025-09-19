@@ -10,6 +10,8 @@ import { Notifications } from "./writer/notifications"
 import { Profile } from "./writer/profile"
 import { Settings } from "./writer/settings"
 import { Button } from "@/components/ui/button"
+import { Separator } from "@/components/ui/separator"
+import { useUser } from "@/components/user-context"
 import { 
   BarChart3, 
   PlusSquare, 
@@ -19,12 +21,19 @@ import {
   DollarSign,
   Bell,
   User,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Home,
+  Shield
 } from "lucide-react"
 
-export function WriterPanel() {
+interface WriterPanelProps {
+  onPanelChange?: (panel: "home" | "writer" | "reader" | "admin") => void
+}
+
+export function WriterPanel({ onPanelChange }: WriterPanelProps) {
   const [currentPage, setCurrentPage] = useState("dashboard")
   const [selectedData, setSelectedData] = useState(null)
+  const { user } = useUser()
 
   const handleNavigate = (page: string, data?: any) => {
     if (data) {
@@ -43,6 +52,12 @@ export function WriterPanel() {
     { id: "notifications", label: "Notifications", icon: Bell },
     { id: "profile", label: "Profile", icon: User },
     { id: "settings", label: "Settings", icon: SettingsIcon }
+  ]
+
+  const panelItems = [
+    { id: "home", label: "Home", icon: Home },
+    { id: "reader", label: "Reader Panel", icon: BookOpen },
+    ...(user?.profile?.role === "admin" ? [{ id: "admin", label: "Admin Panel", icon: Shield }] : [])
   ]
 
   const renderPage = () => {
@@ -86,6 +101,29 @@ export function WriterPanel() {
             )
           })}
         </nav>
+
+        {onPanelChange && (
+          <>
+            <Separator className="my-6" />
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground px-3">Switch Panel</p>
+              {panelItems.map((item) => {
+                const Icon = item.icon
+                return (
+                  <Button
+                    key={item.id}
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={() => onPanelChange(item.id as any)}
+                  >
+                    <Icon className="h-4 w-4 mr-3" />
+                    {item.label}
+                  </Button>
+                )
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Main Content */}

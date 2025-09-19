@@ -70,11 +70,11 @@ const Index = () => {
 
     switch (currentPanel) {
       case "writer":
-        return <WriterPanel />
+        return <WriterPanel onPanelChange={setCurrentPanel} />
       case "reader":
-        return <ReaderPanel />
+        return <ReaderPanel onPanelChange={setCurrentPanel} />
       case "admin":
-        return <AdminPanel />
+        return <AdminPanel onPanelChange={setCurrentPanel} />
       default:
         return <HomePage onPanelChange={setCurrentPanel} />
     }

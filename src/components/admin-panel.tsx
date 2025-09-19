@@ -12,6 +12,7 @@ import { Settings } from "@/components/admin/settings"
 import { AdminConfig } from "@/components/admin/admin-config"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 import { 
   Shield, 
   BarChart3, 
@@ -23,10 +24,16 @@ import {
   Tag,
   Settings as SettingsIcon,
   UserCheck,
-  FileText
+  FileText,
+  Home,
+  PenTool
 } from "lucide-react"
 
-export function AdminPanel() {
+interface AdminPanelProps {
+  onPanelChange?: (panel: "home" | "writer" | "reader" | "admin") => void
+}
+
+export function AdminPanel({ onPanelChange }: AdminPanelProps) {
   const [currentPage, setCurrentPage] = useState("dashboard")
   const [selectedData, setSelectedData] = useState(null)
 
@@ -49,6 +56,12 @@ export function AdminPanel() {
     { id: "categories", label: "Categories", icon: Tag },
     { id: "settings", label: "Settings", icon: SettingsIcon },
     { id: "admin-config", label: "Admin Config", icon: UserCheck }
+  ]
+
+  const panelItems = [
+    { id: "home", label: "Home", icon: Home },
+    { id: "reader", label: "Reader Panel", icon: BookOpen },
+    { id: "writer", label: "Writer Panel", icon: PenTool }
   ]
 
   const renderPage = () => {
@@ -105,6 +118,29 @@ export function AdminPanel() {
             )
           })}
         </nav>
+
+        {onPanelChange && (
+          <>
+            <Separator className="my-6" />
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground px-3">Switch Panel</p>
+              {panelItems.map((item) => {
+                const Icon = item.icon
+                return (
+                  <Button
+                    key={item.id}
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={() => onPanelChange(item.id as any)}
+                  >
+                    <Icon className="h-4 w-4 mr-3" />
+                    {item.label}
+                  </Button>
+                )
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Main Content */}
