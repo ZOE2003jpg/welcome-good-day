@@ -10,6 +10,7 @@ import { CommentsManagement } from "@/components/admin/comments-management"
 import { CategoriesTags } from "@/components/admin/categories-tags"
 import { Settings } from "@/components/admin/settings"
 import { AdminConfig } from "@/components/admin/admin-config"
+import { UserPromotion } from "@/components/admin/user-promotion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -55,7 +56,8 @@ export function AdminPanel({ onPanelChange }: AdminPanelProps) {
     { id: "comments", label: "Comments", icon: MessageSquare },
     { id: "categories", label: "Categories", icon: Tag },
     { id: "settings", label: "Settings", icon: SettingsIcon },
-    { id: "admin-config", label: "Admin Config", icon: UserCheck }
+    { id: "admin-config", label: "Admin Config", icon: UserCheck },
+    { id: "user-promotion", label: "User Promotion", icon: Shield }
   ]
 
   const panelItems = [
@@ -88,6 +90,8 @@ export function AdminPanel({ onPanelChange }: AdminPanelProps) {
         return <Settings onNavigate={handleNavigate} />
       case "admin-config":
         return <AdminConfig onNavigate={handleNavigate} />
+      case "user-promotion":
+        return <UserPromotion onNavigate={handleNavigate} />
       default:
         return <Dashboard onNavigate={handleNavigate} />
     }

@@ -115,6 +115,26 @@ export function useStories() {
 
   useEffect(() => {
     fetchStories()
+
+    // Set up real-time subscription  
+    const storiesChannel = supabase
+      .channel('stories-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'stories'
+        },
+        () => {
+          fetchStories()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(storiesChannel)
+    }
   }, [])
 
   return {

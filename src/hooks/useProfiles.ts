@@ -110,6 +110,26 @@ export function useProfiles() {
 
   useEffect(() => {
     fetchProfiles()
+
+    // Set up real-time subscription
+    const profilesChannel = supabase
+      .channel('profiles-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles'
+        },
+        () => {
+          fetchProfiles()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(profilesChannel)
+    }
   }, [])
 
   return {

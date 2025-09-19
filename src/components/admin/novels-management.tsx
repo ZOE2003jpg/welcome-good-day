@@ -45,8 +45,7 @@ export function NovelsManagement({ onNavigate }: NovelsManagementProps) {
   // Ensure we have the latest data
   useEffect(() => {
     fetchStories()
-    fetchProfiles()
-  }, []);
+  }, [fetchStories]);
 
   const filteredStories = stories.filter(story => {
     const matchesSearch = story.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -89,7 +88,7 @@ export function NovelsManagement({ onNavigate }: NovelsManagementProps) {
 
   const handleBlockNovel = async (story) => {
     try {
-      await updateStory(story.id, { status: 'banned' });
+      await updateStory(story.id, { status: 'archived' });
       toast({
         title: "Success",
         description: `"${story.title}" has been blocked`

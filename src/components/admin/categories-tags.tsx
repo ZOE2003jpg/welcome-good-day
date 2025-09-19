@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { 
-  Tag, 
+  Tag as TagIcon, 
   Plus, 
   Edit, 
   Trash2, 
@@ -24,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog"
-import { useCategories } from "@/hooks/useCategories"
+import { useCategories, Category, Tag } from "@/hooks/useCategories"
 import { supabase } from "@/integrations/supabase/client"
 import { toast } from "sonner"
 
@@ -236,7 +236,7 @@ export function CategoriesTags({ onNavigate }: CategoriesTagsProps) {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold flex items-center gap-3">
-          <Tag className="h-8 w-8 text-primary" />
+          <TagIcon className="h-8 w-8 text-primary" />
           Categories & Tags
         </h1>
         <p className="text-muted-foreground mt-2">
@@ -367,7 +367,7 @@ export function CategoriesTags({ onNavigate }: CategoriesTagsProps) {
           <div className="flex justify-between items-center">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <Tag className="h-5 w-5" />
+                <TagIcon className="h-5 w-5" />
                 Tags
               </CardTitle>
               <CardDescription>

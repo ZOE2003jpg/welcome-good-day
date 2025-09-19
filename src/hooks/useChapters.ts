@@ -103,6 +103,29 @@ export function useChapters(storyId?: string) {
 
   useEffect(() => {
     fetchChapters()
+
+    // Set up real-time subscription only if we have a storyId
+    if (!storyId) return
+
+    const chaptersChannel = supabase
+      .channel(`chapters-${storyId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chapters',
+          filter: `story_id=eq.${storyId}`
+        },
+        () => {
+          fetchChapters()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(chaptersChannel)
+    }
   }, [storyId])
 
   return {

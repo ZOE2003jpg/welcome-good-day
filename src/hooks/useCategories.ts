@@ -151,6 +151,42 @@ export function useCategories() {
 
   useEffect(() => {
     fetchAll()
+
+    // Set up real-time subscriptions
+    const categoriesChannel = supabase
+      .channel('categories-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'categories'
+        },
+        () => {
+          fetchCategories()
+        }
+      )
+      .subscribe()
+
+    const tagsChannel = supabase
+      .channel('tags-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tags'
+        },
+        () => {
+          fetchTags()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(categoriesChannel)
+      supabase.removeChannel(tagsChannel)
+    }
   }, [])
 
   return {

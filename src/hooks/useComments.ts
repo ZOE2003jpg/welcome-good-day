@@ -65,6 +65,26 @@ export function useComments() {
 
   useEffect(() => {
     fetchComments()
+
+    // Set up real-time subscription
+    const commentsChannel = supabase
+      .channel('comments-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'comments'
+        },
+        () => {
+          fetchComments()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(commentsChannel)
+    }
   }, [])
 
   return {
