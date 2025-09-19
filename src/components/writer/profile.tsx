@@ -1,384 +1,295 @@
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 import { 
-  ArrowLeft,
-  User,
-  Edit,
-  Camera,
-  BookOpen,
+  User, 
+  Edit, 
+  Save, 
+  X, 
+  BookOpen, 
+  Heart, 
+  Eye, 
+  Star,
   Calendar,
-  Eye,
-  Heart,
-  Users,
-  Award,
-  Link as LinkIcon,
-  Save
+  MapPin,
+  Mail,
+  Globe,
+  Twitter,
+  Instagram
 } from "lucide-react"
+import { useUser } from "@/components/user-context"
+import { useStories } from "@/hooks/useStories"
 
 interface ProfileProps {
   onNavigate: (page: string, data?: any) => void
 }
 
 export function Profile({ onNavigate }: ProfileProps) {
+  const { user } = useUser()
+  const { stories, loading: storiesLoading } = useStories()
   const [isEditing, setIsEditing] = useState(false)
   const [profileData, setProfileData] = useState({
-    displayName: "Alex Morgan",
-    penName: "A.M. Storyteller", 
-    bio: "Passionate science fiction writer with a love for exploring the boundaries between technology and humanity. I believe in the power of stories to inspire and transform.",
-    location: "San Francisco, CA",
-    website: "alexmorgan.author",
-    twitter: "@alexmorgan_sf",
-    instagram: "@amstoryteller"
+    displayName: user?.profile?.display_name || "Writer",
+    penName: user?.profile?.username || "writer", 
+    bio: user?.profile?.bio || "No bio available",
+    location: "",
+    website: "",
+    twitter: "",
+    instagram: ""
   })
 
+  // Calculate real stats from stories data
+  const userStories = stories.filter(s => s.author_id === user?.id)
   const writerStats = {
-    totalStories: 12,
-    totalReads: 145230,
-    totalFollowers: 1420,
-    averageRating: 4.8,
-    joinedDate: "January 2023"
+    totalStories: userStories.length,
+    totalReads: userStories.reduce((sum, story) => sum + story.view_count, 0),
+    totalFollowers: 0, // This would need a followers table
+    averageRating: 0, // This would need a ratings system
+    joinedDate: user?.profile?.created_at ? new Date(user.profile.created_at).toLocaleDateString() : "Unknown"
   }
 
-  const publishedStories = [
-    {
-      id: 1,
-      title: "The Digital Awakening",
-      genre: "Sci-Fi",
-      status: "Completed",
-      chapters: 15,
-      reads: 45200,
-      likes: 2150,
-      rating: 4.9,
-      publishedDate: "March 2024"
-    },
-    {
-      id: 2,
-      title: "The Last Algorithm",
-      genre: "Thriller",
-      status: "Ongoing",
-      chapters: 12,
-      reads: 32100,
-      likes: 1680,
-      rating: 4.7,
-      publishedDate: "February 2024"
-    },
-    {
-      id: 3,
-      title: "Memories in the Rain",
-      genre: "Romance",
-      status: "Completed",
-      chapters: 8,
-      reads: 18950,
-      likes: 950,
-      rating: 4.8,
-      publishedDate: "January 2024"
-    },
-    {
-      id: 4,
-      title: "Echoes of Tomorrow", 
-      genre: "Fantasy",
-      status: "Completed",
-      chapters: 20,
-      reads: 28200,
-      likes: 1450,
-      rating: 4.6,
-      publishedDate: "December 2023"
-    }
-  ]
-
-  const achievements = [
-    {
-      title: "Trending Writer",
-      description: "Featured in trending stories 5+ times",
-      icon: Award,
-      earned: true
-    },
-    {
-      title: "Reader's Choice",
-      description: "Story rated 4.5+ stars by 100+ readers",
-      icon: Heart,
-      earned: true
-    },
-    {
-      title: "Prolific Author",
-      description: "Published 10+ stories",
-      icon: BookOpen,
-      earned: true
-    },
-    {
-      title: "Community Favorite",
-      description: "Gained 1000+ followers",
-      icon: Users,
-      earned: true
-    }
-  ]
+  // Filter published stories by current user
+  const publishedStories = userStories.filter(s => s.status === 'published')
 
   const handleSave = () => {
-    // Handle save profile logic here
     setIsEditing(false)
+    // Here you would typically save to your backend
+  }
+
+  const handleCancel = () => {
+    setIsEditing(false)
+    // Reset form to original values
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => onNavigate("dashboard")}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">Writer Profile</h1>
-            <p className="text-muted-foreground">Manage your public writer profile</p>
-          </div>
-        </div>
-        <Button 
-          variant={isEditing ? "default" : "outline"}
-          onClick={isEditing ? handleSave : () => setIsEditing(true)}
-          className={isEditing ? "vine-button-hero" : ""}
-        >
-          {isEditing ? (
-            <>
-              <Save className="h-4 w-4 mr-2" />
-              Save Changes
-            </>
-          ) : (
-            <>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Profile
-            </>
-          )}
-        </Button>
+      <div>
+        <h1 className="text-3xl font-bold flex items-center gap-3">
+          <User className="h-8 w-8 text-primary" />
+          Writer Profile
+        </h1>
+        <p className="text-muted-foreground mt-2">
+          Manage your writer profile and view your publishing statistics
+        </p>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Profile Info */}
-        <div className="lg:col-span-1 space-y-6">
-          <Card className="vine-card">
-            <CardHeader>
-              <CardTitle>Profile Picture</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-center">
-                <div className="relative">
-                  <Avatar className="w-24 h-24">
-                    <AvatarImage src="/placeholder.svg" />
-                    <AvatarFallback className="text-lg">AM</AvatarFallback>
-                  </Avatar>
-                  {isEditing && (
-                    <Button 
-                      size="icon"
-                      variant="secondary" 
-                      className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full"
-                    >
-                      <Camera className="h-4 w-4" />
-                    </Button>
-                  )}
+      {/* Profile Information */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Profile Card */}
+        <Card className="vine-card lg:col-span-1">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <Avatar className="h-24 w-24">
+                <AvatarImage src={user?.profile?.avatar_url || ""} alt="Profile" />
+                <AvatarFallback>
+                  <User className="h-12 w-12" />
+                </AvatarFallback>
+              </Avatar>
+            </div>
+            <CardTitle className="flex items-center justify-center gap-2">
+              {isEditing ? (
+                <Input 
+                  value={profileData.displayName}
+                  onChange={(e) => setProfileData({...profileData, displayName: e.target.value})}
+                  className="text-center"
+                />
+              ) : (
+                profileData.displayName
+              )}
+            </CardTitle>
+            <CardDescription>
+              {isEditing ? (
+                <Input 
+                  value={profileData.penName}
+                  onChange={(e) => setProfileData({...profileData, penName: e.target.value})}
+                  className="text-center"
+                />
+              ) : (
+                `@${profileData.penName}`
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {isEditing ? (
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="bio">Bio</Label>
+                  <Textarea 
+                    id="bio"
+                    value={profileData.bio}
+                    onChange={(e) => setProfileData({...profileData, bio: e.target.value})}
+                    rows={4}
+                  />
                 </div>
-              </div>
-              {isEditing && (
-                <div className="text-center">
-                  <Button variant="outline" size="sm">
-                    <Camera className="h-4 w-4 mr-2" />
-                    Upload New Photo
+                <div>
+                  <Label htmlFor="location">Location</Label>
+                  <Input 
+                    id="location"
+                    value={profileData.location}
+                    onChange={(e) => setProfileData({...profileData, location: e.target.value})}
+                    placeholder="Your location"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="website">Website</Label>
+                  <Input 
+                    id="website"
+                    value={profileData.website}
+                    onChange={(e) => setProfileData({...profileData, website: e.target.value})}
+                    placeholder="yourwebsite.com"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleSave} size="sm" className="flex-1">
+                    <Save className="h-4 w-4 mr-1" />
+                    Save
+                  </Button>
+                  <Button onClick={handleCancel} variant="outline" size="sm" className="flex-1">
+                    <X className="h-4 w-4 mr-1" />
+                    Cancel
                   </Button>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Writer Stats */}
-          <Card className="vine-card">
-            <CardHeader>
-              <CardTitle>Writer Stats</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Stories Published</span>
-                <span className="font-medium">{writerStats.totalStories}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Total Reads</span>
-                <span className="font-medium">{writerStats.totalReads.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Followers</span>
-                <span className="font-medium">{writerStats.totalFollowers.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Average Rating</span>
-                <span className="font-medium">{writerStats.averageRating} ⭐</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Member Since</span>
-                <span className="font-medium">{writerStats.joinedDate}</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Achievements */}
-          <Card className="vine-card">
-            <CardHeader>
-              <CardTitle>Achievements</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {achievements.map((achievement, index) => (
-                  <div key={index} className={`flex items-center gap-3 p-2 rounded-lg ${
-                    achievement.earned ? "bg-primary/10" : "bg-secondary/20"
-                  }`}>
-                    <achievement.icon className={`h-5 w-5 ${
-                      achievement.earned ? "text-primary" : "text-muted-foreground"
-                    }`} />
-                    <div className="flex-1">
-                      <p className={`text-sm font-medium ${
-                        achievement.earned ? "" : "text-muted-foreground"
-                      }`}>
-                        {achievement.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {achievement.description}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Profile Details Form */}
-          <Card className="vine-card">
-            <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
-              <CardDescription>
-                This information will be visible to readers on your profile page
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="display-name">Display Name</Label>
-                  <Input
-                    id="display-name"
-                    value={profileData.displayName}
-                    onChange={(e) => setProfileData({...profileData, displayName: e.target.value})}
-                    disabled={!isEditing}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="pen-name">Pen Name</Label>
-                  <Input
-                    id="pen-name"
-                    value={profileData.penName}
-                    onChange={(e) => setProfileData({...profileData, penName: e.target.value})}
-                    disabled={!isEditing}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="bio">Bio</Label>
-                <Textarea
-                  id="bio"
-                  value={profileData.bio}
-                  onChange={(e) => setProfileData({...profileData, bio: e.target.value})}
-                  disabled={!isEditing}
-                  rows={4}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="location">Location</Label>
-                <Input
-                  id="location"
-                  value={profileData.location}
-                  onChange={(e) => setProfileData({...profileData, location: e.target.value})}
-                  disabled={!isEditing}
-                />
-              </div>
-
+            ) : (
               <div className="space-y-4">
-                <Label>Social Links</Label>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <LinkIcon className="h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Website URL"
-                      value={profileData.website}
-                      onChange={(e) => setProfileData({...profileData, website: e.target.value})}
-                      disabled={!isEditing}
-                    />
+                <p className="text-sm text-muted-foreground">
+                  {profileData.bio}
+                </p>
+                
+                {profileData.location && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <MapPin className="h-4 w-4" />
+                    <span>{profileData.location}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground w-4">@</span>
-                    <Input
-                      placeholder="Twitter handle"
-                      value={profileData.twitter}
-                      onChange={(e) => setProfileData({...profileData, twitter: e.target.value})}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground w-4">@</span>
-                    <Input
-                      placeholder="Instagram handle"
-                      value={profileData.instagram}
-                      onChange={(e) => setProfileData({...profileData, instagram: e.target.value})}
-                      disabled={!isEditing}
-                    />
-                  </div>
+                )}
+
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  <span>Joined {writerStats.joinedDate}</span>
                 </div>
+
+                {profileData.website && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Globe className="h-4 w-4" />
+                    <a href={`https://${profileData.website}`} className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
+                      {profileData.website}
+                    </a>
+                  </div>
+                )}
+
+                <Button onClick={() => setIsEditing(true)} variant="outline" className="w-full">
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Profile
+                </Button>
               </div>
-            </CardContent>
-          </Card>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Stats and Stories */}
+        <div className="lg:col-span-2 space-y-8">
+          {/* Stats Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card className="vine-card text-center">
+              <CardContent className="pt-6">
+                <div className="text-2xl font-bold text-primary">{writerStats.totalStories}</div>
+                <div className="text-sm text-muted-foreground">Stories</div>
+              </CardContent>
+            </Card>
+            <Card className="vine-card text-center">
+              <CardContent className="pt-6">
+                <div className="text-2xl font-bold">{writerStats.totalReads.toLocaleString()}</div>
+                <div className="text-sm text-muted-foreground">Total Reads</div>
+              </CardContent>
+            </Card>
+            <Card className="vine-card text-center">
+              <CardContent className="pt-6">
+                <div className="text-2xl font-bold">{writerStats.totalFollowers.toLocaleString()}</div>
+                <div className="text-sm text-muted-foreground">Followers</div>
+              </CardContent>
+            </Card>
+            <Card className="vine-card text-center">
+              <CardContent className="pt-6">
+                <div className="text-2xl font-bold">
+                  {writerStats.averageRating > 0 ? writerStats.averageRating : "N/A"}
+                </div>
+                <div className="text-sm text-muted-foreground">Avg Rating</div>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Published Stories */}
           <Card className="vine-card">
             <CardHeader>
-              <CardTitle>Published Works</CardTitle>
-              <CardDescription>Stories visible on your public profile</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                Published Stories
+              </CardTitle>
+              <CardDescription>
+                Your published works and their performance
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {publishedStories.map((story) => (
-                  <div key={story.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="space-y-1">
-                      <h4 className="font-medium">{story.title}</h4>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <Badge variant="outline">{story.genre}</Badge>
-                        <span>{story.chapters} chapters</span>
-                        <span>{story.status}</span>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Eye className="h-3 w-3" />
-                          {story.reads.toLocaleString()}
+              {storiesLoading ? (
+                <div className="text-center py-8">Loading stories...</div>
+              ) : publishedStories.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No published stories yet</p>
+                  <p className="text-sm">Start writing to see your stories here</p>
+                  <Button 
+                    className="mt-4"
+                    onClick={() => onNavigate("create-story")}
+                  >
+                    Create Your First Story
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {publishedStories.map((story) => (
+                    <Card key={story.id} className="vine-card">
+                      <CardContent className="pt-6">
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-2 flex-1">
+                            <div className="flex items-center gap-3">
+                              <h3 className="font-semibold">{story.title}</h3>
+                              <Badge variant={story.status === 'published' ? 'default' : 'secondary'}>
+                                {story.status}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground">{story.genre}</p>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              <div className="flex items-center gap-1">
+                                <Eye className="h-4 w-4" />
+                                <span>{story.view_count.toLocaleString()}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Heart className="h-4 w-4" />
+                                <span>{story.like_count}</span>
+                              </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Created: {new Date(story.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="flex gap-2 ml-4">
+                            <Button size="sm" variant="outline">
+                              <Edit className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Heart className="h-3 w-3" />
-                          {story.likes.toLocaleString()}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          ⭐ {story.rating}
-                        </div>
-                      </div>
-                    </div>
-                    <Button size="sm" variant="outline" onClick={() => onNavigate("manage-chapters")}>
-                      <BookOpen className="h-4 w-4 mr-1" />
-                      View
-                    </Button>
-                  </div>
-                ))}
-              </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

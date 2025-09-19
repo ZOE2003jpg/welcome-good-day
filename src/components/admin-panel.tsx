@@ -11,6 +11,7 @@ import { CategoriesTags } from "@/components/admin/categories-tags"
 import { Settings } from "@/components/admin/settings"
 import { AdminConfig } from "@/components/admin/admin-config"
 import { UserPromotion } from "@/components/admin/user-promotion"
+import { UserCreation } from "@/components/admin/user-creation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -57,7 +58,8 @@ export function AdminPanel({ onPanelChange }: AdminPanelProps) {
     { id: "categories", label: "Categories", icon: Tag },
     { id: "settings", label: "Settings", icon: SettingsIcon },
     { id: "admin-config", label: "Admin Config", icon: UserCheck },
-    { id: "user-promotion", label: "User Promotion", icon: Shield }
+    { id: "user-promotion", label: "User Promotion", icon: Shield },
+    { id: "user-creation", label: "Create Users", icon: UserCheck }
   ]
 
   const panelItems = [
@@ -92,6 +94,8 @@ export function AdminPanel({ onPanelChange }: AdminPanelProps) {
         return <AdminConfig onNavigate={handleNavigate} />
       case "user-promotion":
         return <UserPromotion onNavigate={handleNavigate} />
+      case "user-creation":
+        return <UserCreation onNavigate={handleNavigate} />
       default:
         return <Dashboard onNavigate={handleNavigate} />
     }

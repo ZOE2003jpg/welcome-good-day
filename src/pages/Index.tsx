@@ -17,6 +17,25 @@ const Index = () => {
     setShowSplash(false)
   }
 
+  // Redirect to appropriate panel based on role
+  useEffect(() => {
+    if (loading || !user) return
+
+    if (user?.profile?.role) {
+      const userRole = user.profile.role
+      if (currentPanel === "home") {
+        // Automatically redirect users to their appropriate panel
+        if (userRole === "reader") {
+          setCurrentPanel("reader")
+        } else if (userRole === "writer") {
+          setCurrentPanel("writer") 
+        } else if (userRole === "admin") {
+          setCurrentPanel("admin")
+        }
+      }
+    }
+  }, [user, loading, currentPanel])
+
   // Redirect to home if user doesn't have access to current panel
   useEffect(() => {
     if (loading) return

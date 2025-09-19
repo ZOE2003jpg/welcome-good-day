@@ -26,19 +26,7 @@ export function useLibrary(userId?: string) {
       setLoading(true)
       const { data, error } = await supabase
         .from('library')
-        .select(`
-          *,
-          stories (
-            *,
-            profiles!stories_author_id_fkey (
-              display_name,
-              username
-            ),
-            story_tags (
-              tag
-            )
-          )
-        `)
+        .select(`*, stories(*)`)
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
 
